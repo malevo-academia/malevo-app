@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Malevo Academia · Activa tu membresía</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505; --card-bg:#0d0d0d; --input-bg:#0a0a0a;
+  --border:rgba(226,144,35,.35); --border-soft:rgba(226,144,35,.2); --border-faint:#2a2a2a;
+  --text:#ffffff; --text-2:#c9c9c9; --muted:#8a8a8a; --faint:#555;
+  --gold:#E29023; --gold-2:#FFD573; --gold-deep:#B86E10;
+  --gold-gradient:linear-gradient(135deg,#FFD573 0%,#E29023 50%,#B86E10 100%);
+  --gold-soft:rgba(226,144,35,.12); --gold-glow:rgba(226,144,35,.2);
+  --r-sm:10px; --r:16px; --r-lg:22px;
+  --t:.22s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+h1,h2,h3,.sora{font-family:'Sora','Inter',sans-serif;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:rgba(226,144,35,.3);border-radius:5px;}
+button{font-family:inherit;}
+input{font-family:inherit;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(226,144,35,.35)}50%{box-shadow:0 0 0 10px rgba(226,144,35,0)}}
+@keyframes toastSlide{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ── Fondo decorativo con halo dorado ── */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(226,144,35,.10) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(226,144,35,.06) 0%, transparent 60%);}
+
+.phone-shell{max-width:600px;margin:0 auto;position:relative;z-index:1;min-height:100vh;}
+
+/* ── Pantallas: cada una se centra dentro de una tarjeta con resplandor dorado ── */
+.screen{display:none;min-height:100vh;padding:32px 16px 44px;align-items:flex-start;justify-content:center;}
+.screen.active{display:flex;animation:fadeIn .4s ease both;}
+.screen-card{width:100%;max-width:440px;background:#111111;border:1px solid var(--gold-glow);
+  border-radius:26px;padding:30px 24px 34px;box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 44px rgba(226,144,35,.09);}
+@media(min-width:640px){ .screen{padding-top:56px;} }
+
+/* ── Logotipo real de Malevo (imagen) ── */
+.logo-img{display:block;margin:0 auto 22px;width:auto;}
+.logo-img.big{max-width:170px;}
+.logo-img.compact{max-width:110px;margin-bottom:20px;}
+
+/* ── Foto real de los bailarines ── */
+.pareja-img{display:block;width:100%;object-fit:cover;border-radius:var(--r-lg);
+  box-shadow:0 16px 40px rgba(0,0,0,.6),0 0 0 1px var(--border-soft);}
+.pareja-img.big{max-height:230px;margin:0 0 20px;}
+.pareja-img.small{max-height:110px;margin:0 0 18px;}
+
+.screen-title{font-size:30px;font-weight:800;text-align:center;
+  background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:8px;letter-spacing:-.3px;}
+.screen-subtitle{font-size:14px;color:var(--text-2);text-align:center;margin-bottom:26px;}
+
+/* ── Campos de formulario ── */
+.field{position:relative;margin-bottom:14px;}
+.field input{width:100%;background:var(--input-bg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:15px 16px 15px 46px;color:var(--text);font-size:14px;
+  transition:border-color var(--t),box-shadow var(--t);}
+.field input::placeholder{color:var(--muted);}
+.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-glow);}
+.field .icon{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--gold);
+  width:18px;height:18px;pointer-events:none;display:flex;}
+.field .icon svg{width:18px;height:18px;}
+.field .eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;display:flex;}
+.field .eye-btn:hover{color:var(--gold-2);}
+.field .eye-btn svg{width:18px;height:18px;}
+
+.form-err{color:#ff8a8a;font-size:12.5px;min-height:16px;margin:-4px 0 10px;text-align:center;}
+
+.terms-row{display:flex;align-items:flex-start;gap:10px;margin:6px 0 22px;font-size:12.5px;color:var(--text-2);}
+.terms-row input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;accent-color:var(--gold);margin-top:1px;cursor:pointer;}
+.terms-row a{color:var(--gold-2);text-decoration:none;}
+.terms-row a:hover{text-decoration:underline;}
+
+.btn-primary{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--gold-gradient);border:none;border-radius:var(--r-sm);padding:16px;
+  color:#0a0600;font-weight:800;font-size:14.5px;letter-spacing:.4px;text-transform:uppercase;
+  cursor:pointer;transition:transform var(--t),box-shadow var(--t);
+  box-shadow:0 8px 26px rgba(226,144,35,.28),inset 0 1px 0 rgba(255,255,255,.25);}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(226,144,35,.4),inset 0 1px 0 rgba(255,255,255,.25);}
+.btn-primary:active{transform:translateY(0);}
+.btn-primary:disabled{opacity:.6;cursor:default;transform:none;}
+.btn-primary svg{width:16px;height:16px;}
+
+.divider-text{display:flex;align-items:center;gap:12px;margin:24px 0 16px;
+  font-size:11.5px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.divider-text .line{flex:1;height:1px;background:var(--border-faint);}
+
+.social-row{display:flex;gap:10px;margin-bottom:22px;}
+.social-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;
+  background:var(--input-bg);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:13px 6px;cursor:pointer;transition:all var(--t);color:var(--text);font-size:12.5px;font-weight:600;}
+.social-btn:hover{border-color:var(--gold);background:rgba(226,144,35,.06);transform:translateY(-2px);}
+.social-btn svg{width:22px;height:22px;}
+
+.login-link{text-align:center;font-size:13px;color:var(--text-2);}
+.login-link a{color:var(--gold-2);font-weight:600;text-decoration:none;}
+.login-link a:hover{text-decoration:underline;}
+
+/* ── Lista vertical de bonos ── */
+.bono-lista{display:flex;flex-direction:column;gap:12px;margin:6px 0 24px;}
+.bono-item{display:flex;align-items:center;gap:14px;background:var(--input-bg);
+  border:1.5px solid var(--border-faint);border-radius:var(--r);padding:15px 16px;
+  cursor:pointer;transition:all var(--t);position:relative;}
+.bono-item.popular{border-color:rgba(226,144,35,.4);}
+.bono-item.seleccionada{border-color:var(--gold);background:rgba(226,144,35,.06);
+  box-shadow:0 0 0 1px var(--gold-glow),0 0 26px var(--gold-glow);}
+.bono-item-icon{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--border);flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;color:var(--gold);}
+.bono-item.seleccionada .bono-item-icon{background:var(--gold-soft);border-color:var(--gold);}
+.bono-item-icon svg{width:20px;height:20px;}
+.bono-item-info{flex:1;min-width:0;}
+.bono-item-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;}
+.bono-item-nombre{font-size:13.5px;font-weight:700;letter-spacing:.3px;}
+.bono-item-badge{font-size:9px;font-weight:800;letter-spacing:.4px;color:#1a0f00;
+  background:var(--gold-gradient);padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.bono-item-detalle{font-size:12px;color:var(--text-2);}
+.bono-item-precio{font-family:'Sora',sans-serif;font-size:21px;font-weight:800;flex:0 0 auto;text-align:right;
+  background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.bono-item-precio small{display:block;font-family:'Inter',sans-serif;font-size:9.5px;font-weight:600;
+  color:var(--muted);-webkit-text-fill-color:var(--muted);background:none;}
+
+/* ── Selección de días de asistencia ── */
+.dias-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:2px 0 4px;}
+.dia-chip{background:var(--input-bg);border:1.5px solid var(--border-faint);border-radius:var(--r-sm);
+  padding:12px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--text-2);
+  cursor:pointer;transition:all var(--t);}
+.dia-chip.sel{border-color:var(--gold);background:rgba(226,144,35,.08);color:var(--gold-2);
+  box-shadow:inset 0 0 0 1px var(--gold-glow);}
+.dias-hint{font-size:11.5px;color:var(--muted);text-align:center;margin:10px 0 4px;}
+
+/* ── Métodos de pago ── */
+.section-label{display:flex;align-items:center;gap:12px;margin:8px 0 16px;
+  font-size:11.5px;letter-spacing:2px;color:var(--gold-2);text-transform:uppercase;font-weight:700;}
+.section-label .line{flex:1;height:1px;background:var(--border-faint);}
+
+.metodo-row{display:flex;align-items:center;gap:14px;background:var(--input-bg);
+  border:1px solid var(--border-faint);border-radius:var(--r-sm);padding:15px 16px;
+  margin-bottom:12px;cursor:pointer;transition:all var(--t);}
+.metodo-row.sel{border-color:var(--gold);background:rgba(226,144,35,.05);}
+.metodo-radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--faint);
+  flex:0 0 auto;position:relative;transition:all var(--t);}
+.metodo-row.sel .metodo-radio{border-color:var(--gold);}
+.metodo-row.sel .metodo-radio::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gold);}
+.metodo-icon{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--gold);flex:0 0 auto;}
+.metodo-icon svg{width:22px;height:22px;}
+.metodo-label{flex:1;font-size:14px;font-weight:600;}
+.metodo-badges{display:flex;gap:5px;flex:0 0 auto;}
+.metodo-badges span{font-size:9px;font-weight:800;padding:3px 6px;border-radius:4px;letter-spacing:.3px;}
+.badge-visa{background:#1a1f71;color:#fff;}
+.badge-mc{background:#eb001b;color:#fff;}
+.badge-amex{background:#2e77bc;color:#fff;}
+.badge-bizum{background:#0f9d9d;color:#fff;}
+
+.campos-pago{display:none;flex-direction:column;gap:10px;margin:0 0 18px;padding:2px 2px 0;}
+.campos-pago.show{display:flex;}
+.campos-pago input{width:100%;background:var(--input-bg);border:1px solid var(--border-faint);
+  border-radius:var(--r-sm);padding:12px 14px;color:var(--text);font-size:13.5px;}
+.campos-pago input:focus{outline:none;border-color:var(--gold);}
+.campos-pago .row2{display:flex;gap:10px;}
+.campos-pago .row2 input{flex:1;}
+
+.footer-note{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;
+  font-size:11.5px;color:var(--muted);}
+.footer-note .line{flex:1;height:1px;background:var(--border-faint);max-width:60px;}
+.footer-note svg{width:14px;height:14px;color:var(--gold);flex:0 0 auto;}
+
+/* ── Selector de método de pago (paso 1) ── */
+.metodo-row.simple .metodo-icon{background:rgba(255,255,255,.04);border-radius:8px;}
+
+/* ── Stepper de 3 pasos ── */
+.stepper{display:flex;align-items:flex-start;justify-content:center;margin:16px 0 24px;}
+.step-item{display:flex;flex-direction:column;align-items:center;gap:6px;width:64px;}
+.step-num{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border-faint);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
+  color:var(--muted);background:var(--input-bg);transition:all var(--t);}
+.step-lbl{font-size:9.5px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;text-align:center;}
+.step-item.active .step-num{border-color:var(--gold);color:#0a0600;background:var(--gold-gradient);
+  box-shadow:0 0 0 4px var(--gold-glow);}
+.step-item.active .step-lbl{color:var(--gold-2);font-weight:700;}
+.step-item.done .step-num{border-color:var(--gold);color:var(--gold);background:var(--gold-soft);}
+.step-item.done .step-lbl{color:var(--gold-2);}
+.step-line{width:34px;height:1.5px;background:var(--border-faint);margin:14px 2px 0;transition:background var(--t);}
+.step-line.done{background:var(--gold);}
+
+/* ── Resumen de suscripción (paso 2) ── */
+.resumen-card{background:var(--card-bg);border:1.5px solid var(--gold);border-radius:var(--r-lg);
+  padding:30px 24px 26px;text-align:center;margin:8px 0 20px;position:relative;
+  box-shadow:0 0 0 1px var(--gold-glow),0 0 40px var(--gold-glow);}
+.resumen-crown{width:58px;height:58px;border-radius:50%;background:var(--gold-gradient);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#0a0600;
+  box-shadow:0 8px 24px rgba(226,144,35,.35);}
+.resumen-crown svg{width:26px;height:26px;}
+.resumen-plan-nombre{font-size:12.5px;font-weight:700;letter-spacing:1.2px;color:var(--gold-2);
+  text-transform:uppercase;margin-bottom:10px;}
+.resumen-plan-monto{font-family:'Sora',sans-serif;font-size:44px;font-weight:800;
+  background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.resumen-plan-periodo{font-size:12.5px;color:var(--muted);margin:2px 0 20px;}
+.resumen-features{list-style:none;text-align:left;display:flex;flex-direction:column;gap:11px;
+  border-top:1px solid var(--border-faint);padding-top:18px;}
+.resumen-features li{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2);}
+.resumen-features li svg{width:16px;height:16px;color:var(--gold);flex:0 0 auto;}
+
+.resumen-desglose{background:var(--input-bg);border:1px solid var(--border-faint);border-radius:var(--r-sm);
+  padding:14px 18px;margin-bottom:20px;}
+.desglose-row{display:flex;justify-content:space-between;font-size:13.5px;color:var(--text-2);padding:6px 0;}
+.desglose-row.total{border-top:1px solid var(--border-faint);margin-top:4px;padding-top:12px;
+  font-size:16px;font-weight:800;color:var(--gold-2);}
+
+/* ── Confirmación ── */
+.confirm-icon{width:76px;height:76px;border-radius:50%;background:var(--gold-gradient);
+  display:flex;align-items:center;justify-content:center;margin:26px auto 18px;
+  box-shadow:0 0 0 8px var(--gold-glow);animation:pulseGlow 2.2s ease infinite;}
+.confirm-icon svg{width:36px;height:36px;color:#0a0600;}
+.confirm-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:24px 22px;margin:22px 0;}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;
+  border-bottom:1px solid var(--border-faint);font-size:13.5px;}
+.confirm-row:last-child{border-bottom:none;}
+.confirm-row .lbl{color:var(--muted);}
+.confirm-row .val{font-weight:700;color:var(--gold-2);text-align:right;}
+.confirm-aviso{font-size:12px;color:var(--text-2);text-align:center;margin-top:6px;line-height:1.6;
+  display:flex;align-items:flex-start;gap:8px;justify-content:center;}
+.confirm-aviso svg{width:15px;height:15px;color:var(--gold);flex:0 0 auto;margin-top:1px;}
+
+.btn-outline{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;
+  color:var(--gold-2);font-weight:700;font-size:13px;cursor:pointer;transition:all var(--t);margin-top:10px;}
+.btn-outline:hover{background:var(--gold-soft);border-color:var(--gold);}
+.btn-outline svg{width:16px;height:16px;}
+.btn-outline:disabled{opacity:.55;cursor:default;background:transparent;border-color:var(--border-faint);}
+
+.demo-panel{margin-top:30px;padding:18px;border:1px dashed rgba(255,255,255,.15);border-radius:var(--r);
+  background:rgba(255,255,255,.02);}
+.demo-panel-title{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);
+  margin-bottom:12px;text-align:center;}
+.demo-panel .btn-outline{margin-top:8px;font-size:12px;padding:11px;}
+
+/* ── Modal de aviso de vencimiento ── */
+.modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+  padding:24px;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.modal-overlay.show{display:flex;}
+.modal-card{width:100%;max-width:360px;background:var(--card-bg);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:28px 24px 24px;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.7);animation:scaleIn .28s cubic-bezier(.34,1.2,.64,1) both;}
+.modal-icon{width:56px;height:56px;border-radius:50%;background:var(--gold-soft);border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--gold);}
+.modal-icon svg{width:26px;height:26px;}
+.modal-card h3{font-size:18px;margin-bottom:10px;}
+.modal-card p{font-size:13px;color:var(--text-2);margin-bottom:20px;line-height:1.6;}
+.modal-card p strong{color:var(--gold-2);}
+
+/* ── Toast demo ── */
+.demo-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:300;
+  background:var(--card-bg);border:1px solid var(--gold);border-radius:30px;padding:12px 20px;
+  font-size:12.5px;font-weight:600;color:var(--gold-2);box-shadow:0 10px 30px rgba(0,0,0,.6);
+  display:none;max-width:90%;text-align:center;}
+.demo-toast.show{display:block;animation:toastSlide .3s ease both;}
+
+</style>
+</head>
+<body>
+
+<div class="phone-shell">
+
+  <!-- ══════════ PANTALLA 1 · REGISTRO ══════════ -->
+  <section id="screenRegistro" class="screen active">
+   <div class="screen-card">
+    <img class="logo-img big" src="assets/malevo-logo-real.png" alt="Malevo Academia">
+    <img class="pareja-img big" src="assets/malevo-pareja-real.png" alt="Pareja bailando en Malevo Academia">
+
+    <h1 class="screen-title">Bienvenido a Malevo</h1>
+    <p class="screen-subtitle">Crea tu cuenta para empezar a bailar</p>
+
+    <form id="formRegistro" onsubmit="registrarManual(event)">
+      <div class="field">
+        <span class="icon">${''}</span>
+        <span class="icon" id="iconUser"></span>
+        <input type="text" id="inpNombre" placeholder="Nombre completo" autocomplete="name">
+      </div>
+      <div class="field">
+        <span class="icon" id="iconMail"></span>
+        <input type="email" id="inpCorreo" placeholder="Correo electrónico" autocomplete="email">
+      </div>
+      <div class="field">
+        <span class="icon" id="iconPhone"></span>
+        <input type="tel" id="inpTelefono" placeholder="Teléfono" autocomplete="tel">
+      </div>
+      <div class="field">
+        <span class="icon" id="iconLock"></span>
+        <input type="password" id="inpPass" placeholder="Contraseña" autocomplete="new-password">
+        <button type="button" class="eye-btn" id="btnEye" onclick="togglePassword()"></button>
+      </div>
+      <div class="form-err" id="registroErr"></div>
+      <label class="terms-row">
+        <input type="checkbox" id="chkTerms" checked>
+        <span>Acepto los <a href="#" onclick="return false">Términos y Condiciones</a> y la <a href="#" onclick="return false">Política de Privacidad</a>.</span>
+      </label>
+      <button type="submit" class="btn-primary" id="btnEmpezar">Empezar a bailar</button>
+    </form>
+
+    <div class="divider-text"><span class="line"></span>o entra con<span class="line"></span></div>
+    <div class="social-row">
+      <button class="social-btn" onclick="registroSocial('google')" id="btnGoogle"><span>Google</span></button>
+      <button class="social-btn" onclick="registroSocial('facebook')" id="btnFacebook"><span>Facebook</span></button>
+      <button class="social-btn" onclick="registroSocial('apple')" id="btnApple"><span>Apple</span></button>
+    </div>
+
+    <p class="login-link">¿Ya tienes cuenta? <a href="/login.html">Inicia sesión</a></p>
+   </div>
+  </section>
+
+  <!-- ══════════ PANTALLA 2 · BONO Y PAGO ══════════ -->
+  <section id="screenPago" class="screen">
+   <div class="screen-card">
+    <img class="logo-img compact" src="assets/malevo-logo-real.png" alt="Malevo Academia">
+    <img class="pareja-img small" src="assets/malevo-pareja-real.png" alt="Pareja bailando en Malevo Academia">
+
+    <h1 class="screen-title">Activa tu membresía</h1>
+    <p class="screen-subtitle">Selecciona tu plan para empezar a bailar</p>
+
+    <div class="bono-lista" id="bonoLista"></div>
+    <div class="form-err" id="bonoErr"></div>
+
+    <button class="btn-primary" id="btnContinuarBono" onclick="irAMetodoPago()">Continuar <span id="iconContinuarBono"></span></button>
+   </div>
+  </section>
+
+  <!-- ══════════ PANTALLA 2a · PASO 1: MÉTODO DE PAGO ══════════ -->
+  <section id="screenMetodoPago" class="screen">
+   <div class="screen-card">
+    <img class="logo-img compact" src="assets/malevo-logo-real.png" alt="Malevo Academia">
+    <img class="pareja-img small" src="assets/malevo-pareja-real.png" alt="Pareja bailando en Malevo Academia">
+
+    <div class="stepper" id="stepperMetodo">
+      <div class="step-item" data-step="1"><span class="step-num">1</span><span class="step-lbl">Pago</span></div>
+      <div class="step-line" data-line="1"></div>
+      <div class="step-item" data-step="2"><span class="step-num">2</span><span class="step-lbl">Resumen</span></div>
+      <div class="step-line" data-line="2"></div>
+      <div class="step-item" data-step="3"><span class="step-num">3</span><span class="step-lbl">Listo</span></div>
+    </div>
+
+    <h1 class="screen-title">Método de pago</h1>
+    <p class="screen-subtitle">Elige cómo quieres pagar tu membresía</p>
+
+    <div class="metodo-row sel" data-metodo="tarjeta" onclick="seleccionarMetodoPago('tarjeta')">
+      <div class="metodo-radio"></div>
+      <div class="metodo-icon" id="mpIconCard"></div>
+      <div class="metodo-label">Tarjeta de Crédito / Débito</div>
+      <div class="metodo-badges"><span class="badge-visa">VISA</span><span class="badge-mc">MC</span></div>
+    </div>
+
+    <div class="metodo-row" data-metodo="bizum" onclick="seleccionarMetodoPago('bizum')">
+      <div class="metodo-radio"></div>
+      <div class="metodo-icon" id="mpIconBizum"></div>
+      <div class="metodo-label">Bizum</div>
+      <div class="metodo-badges"><span class="badge-bizum">bizum</span></div>
+    </div>
+
+    <div class="metodo-row" data-metodo="googlepay" onclick="seleccionarMetodoPago('googlepay')">
+      <div class="metodo-radio"></div>
+      <div class="metodo-icon" id="mpIconGoogle"></div>
+      <div class="metodo-label">Google Pay</div>
+    </div>
+
+    <div class="metodo-row" data-metodo="applepay" onclick="seleccionarMetodoPago('applepay')">
+      <div class="metodo-radio"></div>
+      <div class="metodo-icon" id="mpIconApple"></div>
+      <div class="metodo-label">Apple Pay</div>
+    </div>
+
+    <button class="btn-primary" onclick="irAResumen()">Continuar</button>
+   </div>
+  </section>
+
+  <!-- ══════════ PANTALLA 2b · PASO 2: RESUMEN DE SUSCRIPCIÓN ══════════ -->
+  <section id="screenResumen" class="screen">
+   <div class="screen-card">
+    <img class="logo-img compact" src="assets/malevo-logo-real.png" alt="Malevo Academia">
+    <img class="pareja-img small" src="assets/malevo-pareja-real.png" alt="Pareja bailando en Malevo Academia">
+
+    <div class="stepper" id="stepperResumen">
+      <div class="step-item done" data-step="1"><span class="step-num">1</span><span class="step-lbl">Pago</span></div>
+      <div class="step-line done" data-line="1"></div>
+      <div class="step-item active" data-step="2"><span class="step-num">2</span><span class="step-lbl">Resumen</span></div>
+      <div class="step-line" data-line="2"></div>
+      <div class="step-item" data-step="3"><span class="step-num">3</span><span class="step-lbl">Listo</span></div>
+    </div>
+
+    <h1 class="screen-title">Resumen de tu suscripción</h1>
+    <p class="screen-subtitle">Revisa los detalles antes de confirmar</p>
+
+    <div class="resumen-card">
+      <div class="resumen-crown" id="resumenCrown"></div>
+      <div class="resumen-plan-nombre" id="resumenPlanNombre">—</div>
+      <div class="resumen-plan-monto" id="resumenPlanMonto">—</div>
+      <div class="resumen-plan-periodo" id="resumenPlanPeriodo">—</div>
+      <ul class="resumen-features" id="resumenFeatures"></ul>
+    </div>
+
+    <div class="resumen-desglose">
+      <div class="desglose-row"><span>Subtotal</span><span id="resumenSubtotal">—</span></div>
+      <div class="desglose-row total"><span>Total</span><span id="resumenTotal">—</span></div>
+    </div>
+
+    <div class="section-label"><span class="line"></span>Días de asistencia<span class="line"></span></div>
+    <div class="dias-grid" id="diasGrid"></div>
+    <p class="dias-hint" id="diasHint">Elige los días en los que asistirás a clase.</p>
+
+    <button class="btn-primary" id="btnPagar" onclick="pagarYEmpezar()">Pagar y Empezar</button>
+
+    <div class="footer-note"><span class="line"></span><span id="iconShield"></span><span>Pago seguro. Cancela cuando quieras.</span><span class="line"></span></div>
+   </div>
+  </section>
+
+  <!-- ══════════ PANTALLA 2c · PASO 3: CONFIRMACIÓN DE ÉXITO ══════════ -->
+  <section id="screenConfirmacion" class="screen">
+   <div class="screen-card">
+    <img class="pareja-img small" src="assets/malevo-pareja-real.png" alt="Pareja bailando en Malevo Academia">
+    <div class="stepper" id="stepperExito">
+      <div class="step-item done" data-step="1"><span class="step-num">1</span><span class="step-lbl">Pago</span></div>
+      <div class="step-line done" data-line="1"></div>
+      <div class="step-item done" data-step="2"><span class="step-num">2</span><span class="step-lbl">Resumen</span></div>
+      <div class="step-line done" data-line="2"></div>
+      <div class="step-item active" data-step="3"><span class="step-num">3</span><span class="step-lbl">Listo</span></div>
+    </div>
+
+    <div class="confirm-icon" id="iconCheckBig"></div>
+    <h1 class="screen-title">¡Pago exitoso!</h1>
+    <p class="screen-subtitle">Tu suscripción ha sido activada correctamente.<br>¡Nos vemos en la pista!</p>
+
+    <div class="confirm-card">
+      <div class="confirm-row"><span class="lbl">Alumno</span><span class="val" id="confAlumno">—</span></div>
+      <div class="confirm-row"><span class="lbl">Plan activo</span><span class="val" id="confPlan">—</span></div>
+      <div class="confirm-row"><span class="lbl">Importe</span><span class="val" id="confPrecio">—</span></div>
+      <div class="confirm-row"><span class="lbl">Próximo cobro</span><span class="val" id="confVencimiento">—</span></div>
+      <div class="confirm-row"><span class="lbl">Día de ciclo</span><span class="val">Día <span id="confDiaCiclo">—</span> de cada mes</span></div>
+      <div class="confirm-row"><span class="lbl">Días de clase</span><span class="val" id="confDias">—</span></div>
+    </div>
+    <button class="btn-primary" onclick="irAMiPerfil()">Ir a mi perfil</button>
+    <button class="btn-outline" onclick="descargarFactura()"><span id="iconFactura"></span> Descargar mi factura (PDF)</button>
+
+    <div class="demo-panel">
+      <div class="demo-panel-title">🧪 Panel de prueba (solo para este recorrido de demo)</div>
+      <button class="btn-outline" onclick="demoAvisoVencimiento()">Simular aviso: faltan 2 días para el cobro</button>
+      <button class="btn-outline demo-renovar-btn" onclick="demoRenovarAnticipado()">Simular renovación anticipada</button>
+    </div>
+   </div>
+  </section>
+
+</div>
+
+<!-- Modal de aviso de vencimiento -->
+<div class="modal-overlay" id="reminderOverlay">
+  <div class="modal-card">
+    <div class="modal-icon" id="iconBell"></div>
+    <h3>Tu cuota está por vencer</h3>
+    <p>Tu membresía vence el <strong id="avisoFecha">—</strong>. Renueva ahora para no perder tu cupo ni tu racha.</p>
+    <button class="btn-primary demo-renovar-btn" onclick="demoRenovarAnticipado()">Renovar ahora</button>
+    <button class="btn-outline" onclick="cerrarAviso()">Cerrar</button>
+  </div>
+</div>
+
+<div class="demo-toast" id="demoToast"></div>
+
+<script>
+/* ── Iconos SVG (line-icons minimalistas, stroke=currentColor) ── */
+const ICONS = {
+  user:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>`,
+  mail:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>`,
+  phone:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
+  lock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  eye:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  eyeOff:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M6.61 6.61A18.5 18.5 0 0 0 1 12s4 8 11 8a9.26 9.26 0 0 0 5.39-1.61"/><path d="M1 1l22 22"/></svg>`,
+  lockSmall:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  chevronRight:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`,
+  check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+  checkBig:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+  star:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>`,
+  starFilled:`<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/></svg>`,
+  crown:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m2 20 2-9 5 4 3-8 3 8 5-4 2 9Z"/><path d="M2 20h20"/></svg>`,
+  ticket:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 0 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2m0 3v2m0 3v2m0 3v2"/></svg>`,
+  card:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2.5"/><path d="M1 10h22"/></svg>`,
+  bizum:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6M4 7l4 4M9 21v-6M11 17l-4-4"/><path d="M17 3v6M15 7l4 4M20 21v-6M22 17l-4-4"/></svg>`,
+  shield:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5Z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  bell:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+  whatsapp:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.16c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.13.11-1.83-.11-.42-.13-.96-.32-1.65-.62-2.91-1.26-4.81-4.18-4.96-4.38-.14-.19-1.18-1.57-1.18-3s.74-2.13 1-2.42c.26-.29.57-.36.76-.36.19 0 .38 0 .55.01.18.01.42-.07.65.5.24.58.81 2.01.88 2.16.07.15.12.32.02.51-.09.19-.14.31-.28.48-.14.17-.29.37-.42.5-.14.14-.29.29-.12.57.17.29.75 1.24 1.61 2.01 1.11.99 2.04 1.3 2.33 1.44.29.14.46.12.63-.07.17-.19.72-.84.91-1.13.19-.29.38-.24.63-.14.26.1 1.64.77 1.92.91.29.14.48.21.55.33.07.12.07.68-.17 1.36Z"/></svg>`,
+  google:`<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.82-.07-1.62-.2-2.39H12v4.53h6.47a5.53 5.53 0 0 1-2.4 3.62v3h3.87c2.27-2.09 3.58-5.17 3.58-8.76Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.9l-3.87-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.28v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.27 14.29a7.2 7.2 0 0 1 0-4.58v-3.1H1.28a12 12 0 0 0 0 10.78l3.99-3.1Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.28 6.61l3.99 3.1C6.22 6.86 8.87 4.75 12 4.75Z"/></svg>`,
+  facebook:`<svg viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.07C24 5.9 18.63.9 12 .9S0 5.9 0 12.07c0 5.56 4.39 10.17 10.13 11v-7.78H7.08v-3.22h3.05V9.41c0-3 1.85-4.66 4.6-4.66 1.33 0 2.72.24 2.72.24v2.94H16c-1.5 0-1.97.92-1.97 1.87v2.24h3.36l-.54 3.22h-2.82V23c5.74-.83 10.13-5.44 10.13-11Z"/></svg>`,
+  apple:`<svg viewBox="0 0 24 24" fill="#ffffff"><path d="M16.36 1.25c.1 1.1-.32 2.16-1.02 2.94-.72.8-1.86 1.42-2.94 1.33-.13-1.07.36-2.17 1.05-2.9.75-.8 1.98-1.4 2.91-1.37Zm3.49 16.06c-.32.75-.7 1.44-1.16 2.08-.63.9-1.15 1.52-1.55 1.86-.63.58-1.3.88-2.02.9-.52.01-1.14-.15-1.87-.47-.73-.32-1.4-.47-2.02-.47-.65 0-1.34.15-2.08.47-.74.32-1.34.49-1.79.5-.7.03-1.38-.28-2.05-.92-.44-.37-1-1.02-1.66-1.96-.71-1-1.29-2.16-1.75-3.49-.49-1.43-.73-2.82-.73-4.16 0-1.53.33-2.86.99-3.96a5.85 5.85 0 0 1 2.08-2.1 5.6 5.6 0 0 1 2.82-.8c.55 0 1.28.17 2.2.51.91.34 1.5.51 1.75.51.19 0 .84-.2 1.94-.6 1.04-.37 1.92-.53 2.63-.47 1.94.16 3.4.92 4.36 2.29-1.74 1.05-2.6 2.53-2.59 4.42.01 1.48.54 2.71 1.58 3.68.47.45 1 .8 1.58 1.04-.13.37-.27.72-.42 1.06Z"/></svg>`,
+  sparkle:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.2 1.8 5.4 4 6.6 2.2 1.2 4.4 1.4 6 1.4-1.6 0-3.8.2-6 1.4-2.2 1.2-3.4 3.4-4 6.6-.6-3.2-1.8-5.4-4-6.6C5.8 10.2 3.6 10 2 10c1.6 0 3.8-.2 6-1.4C10.2 7.4 11.4 5.2 12 2Z"/></svg>`,
+  factura:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>`,
+};
+
+function inject(id, key){ const el = document.getElementById(id); if (el) el.innerHTML = ICONS[key]; }
+inject('iconUser','user'); inject('iconMail','mail'); inject('iconPhone','phone'); inject('iconLock','lock');
+inject('btnEye','eye'); inject('iconShield','shield');
+inject('iconCheckBig','checkBig'); inject('iconBell','bell');
+inject('iconContinuarBono','chevronRight'); inject('iconFactura','factura');
+inject('mpIconCard','card'); inject('mpIconBizum','bizum');
+document.getElementById('btnGoogle').insertAdjacentHTML('afterbegin', ICONS.google);
+document.getElementById('btnFacebook').insertAdjacentHTML('afterbegin', ICONS.facebook);
+document.getElementById('btnApple').insertAdjacentHTML('afterbegin', '<span style="width:22px;height:22px;border-radius:50%;background:#000;display:inline-flex;align-items:center;justify-content:center;">'+ICONS.apple+'</span>');
+document.getElementById('mpIconGoogle').innerHTML = ICONS.google;
+document.getElementById('mpIconApple').innerHTML = '<span style="width:22px;height:22px;border-radius:50%;background:#000;display:inline-flex;align-items:center;justify-content:center;">'+ICONS.apple+'</span>';
+
+/* ── Datos de los 4 bonos oficiales ──
+   planCode conecta cada bono con el plan real del sistema (db.config.precios):
+   35/50/80 son las tarifas reales; el pack de 5 clases usa el código 'bono'
+   (el bono de clases sueltas ya existente en el sistema, mismo precio 50€).
+   maxDias limita cuántos días de la semana puede elegir el alumno según el
+   número de clases que incluye su plan. */
+const BONOS = [
+  {id:'b35', planCode:'35', nombre:'BONO 35€ / MES', nombreCompleto:'Bono 35€/mes', precio:35, periodo:'/ mes', detalle:'1 clase por semana',
+    popular:false, icon:'star', maxDias:1},
+  {id:'b50', planCode:'50', nombre:'BONO 50€ / MES', nombreCompleto:'Bono 50€/mes', precio:50, periodo:'/ mes', detalle:'2 clases por semana',
+    popular:true, icon:'starFilled', maxDias:2},
+  {id:'vip80', planCode:'80', nombre:'BONO VIP 80€ / MES', nombreCompleto:'Bono VIP 80€/mes', precio:80, periodo:'/ mes', detalle:'Acceso total · Clases + Talleres · Pareja',
+    popular:false, icon:'crown', maxDias:6},
+  {id:'c5', planCode:'bono', nombre:'BONO 5 CLASES', nombreCompleto:'Bono 5 Clases', precio:50, periodo:'/ 5 clases', detalle:'Paquete de 5 clases sueltas',
+    popular:false, icon:'ticket', maxDias:5},
+];
+const DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+let idxBonoActivo = null;
+let diasSeleccionados = [];
+let registro = null;
+let metodoPago = 'tarjeta';
+let cicloDia = null;
+let fechaVencimiento = null;
+
+// ── Estado de la sesión real contra el backend ──
+let inviteToken = null;     // token de invitación público, se obtiene al cargar la página
+let onboardingToken = null; // devuelto por /api/onboarding/register, se consume en confirm-payment
+let pagoId = null;          // id del pago real, para poder descargar la factura
+
+// Código de referido: si esta página se abrió desde el enlace personal de
+// un alumno (?ref=CODIGO, compartido desde "Invitar amigos" en el portal),
+// se guarda para enviarlo en el registro y así vincular la cuenta nueva
+// con quien invitó.
+const refCode = new URLSearchParams(location.search).get('ref') || '';
+
+function $(id){ return document.getElementById(id); }
+
+/* Pide el token de invitación al servidor real. Se llama al cargar la
+   página y, por si esa primera llamada falla o tarda, se vuelve a intentar
+   justo cuando el alumno pulsa "Continuar" — así un fallo pasajero de red
+   no deja el error pegado para siempre. */
+async function obtenerInviteToken(){
+  try{
+    const r = await fetch('/api/onboarding/public-token', {credentials:'same-origin'});
+    const d = await r.json();
+    if (d && d.ok && d.token){ inviteToken = d.token; return true; }
+  }catch(e){ /* sin servidor detrás: seguimos sin token */ }
+  return false;
+}
+obtenerInviteToken();
+
+// Si esta página se abrió con doble clic (file://) en vez de con el
+// servidor, ninguna llamada a /api/... va a funcionar nunca. Avisamos de
+// una vez arriba de todo, en vez de dejar que el alumno se tope con un
+// error genérico varios pasos después.
+if (location.protocol === 'file:'){
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:500;background:#3a0d0d;'+
+      'color:#ffb4b4;font-size:12.5px;font-weight:600;text-align:center;padding:10px 16px;'+
+      'border-bottom:1px solid rgba(255,80,80,.4);';
+    banner.textContent = '⚠️ Esta página necesita el servidor real para registrar y cobrar de verdad. Ejecuta "node server.js" y ábrela como http://localhost:8081/registro-membresia.html (no funciona abriendo el archivo directamente).';
+    document.body.prepend(banner);
+  });
+}
+
+function mostrarPantalla(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function togglePassword(){
+  const inp = $('inpPass'), btn = $('btnEye');
+  if (inp.type === 'password'){ inp.type = 'text'; btn.innerHTML = ICONS.eyeOff; }
+  else { inp.type = 'password'; btn.innerHTML = ICONS.eye; }
+}
+
+/* ── Registro ── */
+function registrarManual(e){
+  e.preventDefault();
+  const nombre = $('inpNombre').value.trim();
+  const correo = $('inpCorreo').value.trim();
+  const telefono = $('inpTelefono').value.trim();
+  const pass = $('inpPass').value;
+  const err = $('registroErr');
+  err.textContent = '';
+  if (!nombre || !correo || !telefono || !pass){ err.textContent = 'Completa todos los campos para continuar.'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){ err.textContent = 'Ingresa un correo electrónico válido.'; return; }
+  if (!$('chkTerms').checked){ err.textContent = 'Debes aceptar los Términos y la Política de Privacidad.'; return; }
+  registro = {nombre, correo, telefono, metodo:'manual'};
+  irAPago();
+}
+
+function registroSocial(proveedor){
+  const nombres = {google:'Alumno Demo', facebook:'Alumno Demo', apple:'Alumno Demo'};
+  registro = {nombre: nombres[proveedor], correo:'alumno@demo.com', telefono:'600 000 000', metodo:proveedor};
+  irAPago();
+}
+
+function irAPago(){
+  renderBonos();
+  seleccionarMetodoPago('tarjeta');
+  mostrarPantalla('screenPago');
+}
+
+/* ── Lista vertical de bonos ── */
+function renderBonos(){
+  const cont = $('bonoLista');
+  cont.innerHTML = BONOS.map((b,i) => `
+    <div class="bono-item ${b.popular?'popular':''} ${i===idxBonoActivo?'seleccionada':''}" onclick="seleccionarBono(${i})">
+      <div class="bono-item-icon">${ICONS[b.icon]}</div>
+      <div class="bono-item-info">
+        <div class="bono-item-top">
+          <span class="bono-item-nombre">${b.nombre}</span>
+          ${b.popular ? '<span class="bono-item-badge">★ Más Popular</span>' : ''}
+        </div>
+        <div class="bono-item-detalle">${b.detalle}</div>
+      </div>
+      <div class="bono-item-precio">${b.precio}€<small>${b.periodo}</small></div>
+    </div>`).join('');
+}
+
+function seleccionarBono(i){
+  idxBonoActivo = i;
+  document.querySelectorAll('.bono-item').forEach((el,j)=>el.classList.toggle('seleccionada', j===i));
+}
+
+/* ── Paso 1: método de pago ── */
+function seleccionarMetodoPago(m){
+  metodoPago = m;
+  document.querySelectorAll('#screenMetodoPago .metodo-row').forEach(el=>el.classList.toggle('sel', el.dataset.metodo===m));
+}
+
+/* Al confirmar el bono creamos ya la cuenta real (pendiente de pago) contra
+   el backend: db.users + cookie de sesión temporal. Así, cuando el alumno
+   termine de pagar, ya existe como alumno real y "Ir a mi perfil" funciona
+   de verdad en vez de dar 404. */
+async function irAMetodoPago(){
+  const err = $('bonoErr');
+  err.textContent = '';
+  if (idxBonoActivo === null){ err.textContent = 'Elige un bono para continuar.'; return; }
+
+  const b = BONOS[idxBonoActivo];
+  const btn = $('btnContinuarBono');
+  const original = btn.innerHTML;
+  btn.disabled = true; btn.textContent = 'Creando tu cuenta…';
+
+  if (!inviteToken){
+    // Puede que la primera llamada al cargar la página haya fallado por una
+    // red lenta; lo reintentamos aquí antes de rendirnos.
+    await obtenerInviteToken();
+  }
+  if (!inviteToken){
+    err.textContent = location.protocol === 'file:'
+      ? 'No se pudo conectar con el servidor. Ejecuta "node server.js" y abre esta página como http://localhost:8081/registro-membresia.html.'
+      : 'No se pudo conectar con el servidor. Verifica que "node server.js" esté corriendo e intenta de nuevo.';
+    btn.disabled = false; btn.innerHTML = original;
+    return;
+  }
+  try{
+    const r = await fetch('/api/onboarding/register', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        token: inviteToken,
+        nombre: registro ? registro.nombre : 'Alumno Demo',
+        telefono: registro ? registro.telefono : '',
+        email: registro ? registro.correo : '',
+        plan: b.planCode,
+        refCode: refCode || undefined
+      })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo iniciar el registro.');
+    onboardingToken = d.onboardingToken;
+    actualizarStepper('stepperMetodo', 1);
+    mostrarPantalla('screenMetodoPago');
+  }catch(e){
+    err.textContent = e.message || 'No se pudo iniciar el registro. Intenta de nuevo.';
+  }finally{
+    btn.disabled = false; btn.innerHTML = original;
+  }
+}
+
+/* ── Paso 2: resumen de suscripción ── */
+function irAResumen(){
+  renderResumen();
+  actualizarStepper('stepperResumen', 2);
+  mostrarPantalla('screenResumen');
+}
+
+function renderResumen(){
+  const b = BONOS[idxBonoActivo];
+  $('resumenCrown').innerHTML = ICONS.crown;
+  $('resumenPlanNombre').textContent = b.nombreCompleto;
+  $('resumenPlanMonto').textContent = `${b.precio}€`;
+  $('resumenPlanPeriodo').textContent = b.periodo === '/ mes' ? 'Facturación mensual' : 'Paquete de clases sueltas';
+  $('resumenFeatures').innerHTML = `<li>${ICONS.check}<span>${b.detalle}</span></li>`;
+  $('resumenSubtotal').textContent = `${b.precio.toFixed(2)}€`;
+  $('resumenTotal').textContent = `${b.precio.toFixed(2)}€`;
+  renderDias();
+}
+
+/* ── Días de asistencia ──
+   El número de días que se pueden elegir está limitado por las clases que
+   incluye el plan (ver BONOS[].maxDias): con el bono de 35€ (1 clase/semana)
+   solo se puede marcar 1 día, con el de 50€ (2 clases/semana) hasta 2, etc. */
+function renderDias(){
+  const b = BONOS[idxBonoActivo];
+  const max = b ? b.maxDias : DIAS.length;
+  // Si venían más días marcados de una selección anterior con otro bono, se recortan.
+  while (diasSeleccionados.length > max) diasSeleccionados.pop();
+  $('diasGrid').innerHTML = DIAS.map(d=>
+    `<div class="dia-chip ${diasSeleccionados.includes(d)?'sel':''}" onclick="toggleDia('${d}')">${d}</div>`
+  ).join('');
+  const plural = max === 1 ? 'día' : 'días';
+  $('diasHint').textContent = `Elige hasta ${max} ${plural} de clase según tu plan (${diasSeleccionados.length}/${max} elegidos).`;
+}
+
+function toggleDia(dia){
+  const b = BONOS[idxBonoActivo];
+  const max = b ? b.maxDias : DIAS.length;
+  const i = diasSeleccionados.indexOf(dia);
+  if (i >= 0){
+    diasSeleccionados.splice(i, 1);
+  } else {
+    if (diasSeleccionados.length >= max){
+      mostrarToastDemo(max === 1
+        ? `Este plan solo permite elegir 1 día de clase.`
+        : `Este plan permite elegir hasta ${max} días de clase.`);
+      return;
+    }
+    diasSeleccionados.push(dia);
+  }
+  renderDias();
+}
+
+/* ── Stepper de 3 pasos: marca como 'done' los pasos anteriores al actual ── */
+function actualizarStepper(id, pasoActual){
+  const cont = $(id);
+  if (!cont) return;
+  cont.querySelectorAll('.step-item').forEach(el=>{
+    const n = Number(el.dataset.step);
+    el.classList.toggle('active', n === pasoActual);
+    el.classList.toggle('done', n < pasoActual);
+  });
+  cont.querySelectorAll('.step-line').forEach(el=>{
+    const n = Number(el.dataset.line);
+    el.classList.toggle('done', n < pasoActual);
+  });
+}
+
+/* ── Lógica de recurrencia y vencimiento ──
+   El ciclo de cobro se fija al día del mes en que el alumno pagó por
+   primera vez (o renovó). calcularProximoVencimiento(desde, diaCiclo)
+   devuelve el mismo día del mes siguiente, ajustando al último día del
+   mes si ese día no existe (ej. día 31 en un mes de 30 o en febrero). */
+function calcularProximoVencimiento(desde, diaCiclo){
+  const d = new Date(desde);
+  let mes = d.getMonth() + 1, anio = d.getFullYear();
+  mes++; if (mes > 12){ mes = 1; anio++; }
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  const dia = Math.min(diaCiclo, ultimoDia);
+  return new Date(anio, mes - 1, dia);
+}
+function formatearFecha(d){
+  return d.toLocaleDateString('es-ES', {day:'numeric', month:'long', year:'numeric'});
+}
+
+/* ── Paso 3: pagar y confirmar éxito ──
+   Este pago SÍ se registra de verdad: llama a /api/onboarding/confirm-payment,
+   que activa la cuenta creada en irAMetodoPago(), guarda el cobro real en
+   db.payments y devuelve una cookie de sesión de larga duración — por eso
+   luego "Ir a mi perfil" entra de verdad al portal, sin dar 404. */
+async function pagarYEmpezar(){
+  const btn = $('btnPagar');
+  if (btn.disabled) return;
+  if (!onboardingToken){ mostrarToastDemo('Falta completar el paso anterior. Vuelve a elegir tu bono.'); return; }
+  const b = BONOS[idxBonoActivo];
+  btn.disabled = true;
+  const original = btn.innerHTML;
+  btn.innerHTML = 'Procesando…';
+  try{
+    const notas = `Registro vía registro-membresia.html · Método: ${metodoPago}` +
+      (diasSeleccionados.length ? ` · Días: ${diasSeleccionados.join(', ')}` : '');
+    const r = await fetch('/api/onboarding/confirm-payment', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ onboardingToken, metodo: metodoPago, notas, plan: b.planCode })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo procesar el pago.');
+    pagoId = d.pagoId;
+
+    const hoy = new Date();
+    cicloDia = hoy.getDate();
+    // El ciclo de cobro visible en la demo sigue siendo de 30 días desde hoy
+    // (la lógica de día-de-mes es una capa de simulación sobre el sistema
+    // real, que factura por mes calendario).
+    fechaVencimiento = new Date(hoy);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+
+    renderConfirmacion();
+    actualizarStepper('stepperExito', 3);
+    mostrarPantalla('screenConfirmacion');
+    // La factura real se abre sola, sin que el alumno tenga que pulsar nada.
+    setTimeout(descargarFactura, 500);
+  }catch(e){
+    mostrarToastDemo(e.message || 'No se pudo procesar el pago. Intenta de nuevo.');
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+/* Abre/descarga la factura PDF real generada por el sistema para este pago. */
+function descargarFactura(){
+  if (!pagoId){ mostrarToastDemo('Aún no hay una factura disponible.'); return; }
+  window.open(`/api/factura/${pagoId}/pdf`, '_blank');
+}
+
+/* Botón final "Ir a mi perfil": el alumno ya quedó registrado y logueado de
+   verdad (cookie de sesión emitida por confirm-payment), así que esto es
+   simplemente entrar a su portal real. */
+function irAMiPerfil(){
+  mostrarToastDemo('Entrando a tu perfil…');
+  setTimeout(()=>{ window.location.href = 'portal.html'; }, 700);
+}
+
+function renderConfirmacion(){
+  const b = BONOS[idxBonoActivo];
+  const nombreCorto = registro ? registro.nombre : 'Alumno';
+  $('confPlan').textContent = b.nombreCompleto;
+  $('confPrecio').textContent = `${b.precio}€ ${b.periodo}`;
+  $('confVencimiento').textContent = formatearFecha(fechaVencimiento);
+  $('confDiaCiclo').textContent = cicloDia;
+  $('confDias').textContent = diasSeleccionados.length ? diasSeleccionados.join(', ') : 'Sin definir';
+  const alumnoRow = $('confAlumno');
+  if (alumnoRow) alumnoRow.textContent = nombreCorto;
+}
+
+/* ── Panel de demo: aviso previo + renovación anticipada ── */
+function demoAvisoVencimiento(){
+  $('avisoFecha').textContent = formatearFecha(fechaVencimiento);
+  $('reminderOverlay').classList.add('show');
+}
+function cerrarAviso(){ $('reminderOverlay').classList.remove('show'); }
+
+/* Simula el cobro de la renovación anticipada: pasa por un estado de
+   "procesando" (igual que el pago real) y luego confirma en pantalla que
+   la fecha se recalculó manteniendo el mismo día de ciclo. */
+function demoRenovarAnticipado(){
+  cerrarAviso();
+  const btns = Array.from(document.querySelectorAll('.demo-renovar-btn'));
+  if (btns.some(b=>b.disabled)) return;
+  btns.forEach(b=>{ b.dataset.original = b.innerHTML; b.disabled = true; b.textContent = 'Procesando pago de renovación…'; });
+  setTimeout(()=>{
+    fechaVencimiento = calcularProximoVencimiento(new Date(), cicloDia);
+    renderConfirmacion();
+    btns.forEach(b=>{ b.disabled = false; b.innerHTML = b.dataset.original; });
+    mostrarToastDemo(`✅ Renovación pagada — tu ciclo se mantiene el día ${cicloDia} de cada mes. Próximo cobro: ${formatearFecha(fechaVencimiento)}.`);
+  }, 900);
+}
+
+function mostrarToastDemo(msg){
+  const t = $('demoToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3400);
+}
+</script>
+</body>
+</html>

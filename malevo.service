@@ -1,0 +1,62 @@
+# ===== Unidad systemd para el servidor Node de Malevo Academia =====
+#
+# Instalación (dentro del LXC de Proxmox, como root):
+#   1. Copiar este archivo a /etc/systemd/system/malevo.service
+#   2. Ajustar WorkingDirectory y User/Group más abajo según cómo hayas
+#      preparado el LXC (ver DEPLOY-PROXMOX-LXC.md).
+#   3. systemctl daemon-reload
+#   4. systemctl enable --now malevo
+#
+# Comandos útiles después:
+#   systemctl status malevo        → ver si está corriendo
+#   systemctl restart malevo       → reiniciar (para tomar cambios en .env)
+#   systemctl stop malevo          → detener
+#   journalctl -u malevo -f        → ver logs en vivo
+#   journalctl -u malevo -n 200    → ver los últimos 200 logs
+#
+# El proceso Node escribe sus console.log/console.warn normales — systemd
+# los captura automáticamente en el journal, no hace falta configurar nada
+# extra para eso.
+
+[Unit]
+Description=Malevo Academia - servidor Node.js (panel admin + portal alumno)
+Documentation=file:///opt/malevo/DEPLOY-PROXMOX-LXC.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Ajustar esta ruta al directorio real donde está el proyecto dentro del LXC.
+WorkingDirectory=/opt/malevo
+
+# Ejecuta exactamente lo mismo que "npm start" (ver package.json), pero sin
+# depender de que npm esté en el PATH del servicio.
+ExecStart=/usr/bin/node server.js
+
+# Carga las variables de entorno (STRIPE_SECRET_KEY, JWT_SECRET,
+# PUBLIC_BASE_URL, etc.) directamente desde el .env del proyecto — evita
+# tener que duplicarlas aquí. Nota: si en algún momento ponés
+# FIREBASE_SERVICE_ACCOUNT_JSON en .env (JSON en una sola línea, con
+# comillas y espacios), este mecanismo puede no parsearlo bien; en ese caso
+# es más seguro usar el archivo data/firebase-service-account.json en su
+# lugar (ver .env.example y firebase.js) — no hace falta declararlo aquí.
+EnvironmentFile=/opt/malevo/.env
+
+# Reinicio automático si el proceso se cae por cualquier motivo (no en un
+# stop/restart pedido a mano).
+Restart=on-failure
+RestartSec=5
+
+# Usuario dedicado, sin privilegios de root, dueño del directorio del
+# proyecto (crear con: useradd -r -s /usr/sbin/nologin malevo, y luego
+# chown -R malevo:malevo /opt/malevo).
+User=malevo
+Group=malevo
+
+# Ya viene definido en server.js (PORT || 8081), pero server.js hace
+# server.listen(PORT, '0.0.0.0'), así que no necesita privilegios de root
+# para abrir su puerto — no hace falta AmbientCapabilities ni CAP_NET_BIND.
+
+[Install]
+WantedBy=multi-user.target

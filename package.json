@@ -1,0 +1,19 @@
+{
+  "name": "malevo-academia",
+  "version": "3.0.0",
+  "description": "Academia de Baile Malevo · Panel Admin + Aula Virtual",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "migrate:users": "node scripts/migrar-usuarios-a-firestore.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "archiver": "7.0.1",
+    "firebase-admin": "^12.0.0",
+    "pdfkit": "0.15.1",
+    "stripe": "^17.0.0"
+  }
+}

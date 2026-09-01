@@ -1,0 +1,1686 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Malevo · Panel</title>
+
+<!-- ── PWA: manifest propio del admin, start_url:"/" — así quien instala
+     la app desde el panel de administración vuelve directo al panel (y no
+     al portal del alumno, que usa su propio manifest.json). ── -->
+<link rel="manifest" href="/manifest-admin.json">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/icons/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Malevo">
+<meta name="mobile-web-app-capable" content="yes">
+<script>
+  // Registro temprano del Service Worker también desde el panel de admin
+  // (app.js no lo hace — ese registro vive en portal.js). Idempotente:
+  // si ya estaba registrado desde portal.html, el navegador reutiliza el
+  // mismo registro sin reinstalar nada.
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      console.log('[Malevo] Service Worker registrado. Scope:', reg.scope);
+      reg.update().catch(function(){});
+    }).catch(function(err){
+      console.error('[Malevo] No se pudo registrar el Service Worker (/sw.js):', err);
+    });
+  }
+  // ── Detección de dispositivo móvil (compartida con el bloque de más
+  // abajo que maneja los pasos de instalación) — un ordenador nunca debe
+  // ver la landing de instalación: no tiene una "pantalla de inicio" a la
+  // que agregar un ícono de la misma forma, y ya tiene acceso completo por
+  // navegador. ──
+  window._malevoEsMovil = function(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var esAndroidUOtroMovil = /Android|Mobile|Windows Phone/i.test(ua);
+    return esIOS || esAndroidUOtroMovil;
+  };
+  // ── Landing de instalación ──────────────────────────────────────────
+  // "/" es la puerta de entrada del admin. En un CELULAR/tablet que abre
+  // esto desde un navegador normal (no como PWA instalada) le mostramos
+  // primero una pantalla de bienvenida con los pasos para instalarla, en
+  // vez del login. En un ORDENADOR esa pantalla no tiene sentido —y hasta
+  // hace poco bloqueaba por error el acceso normal al panel desde una
+  // notebook o PC de escritorio—, así que un ordenador salta directo al
+  // login, igual que si la app ya estuviera instalada. Esto se decide con
+  // display-mode:standalone (ya instalada), navigator.standalone (iOS
+  // Safari instalada), o simplemente no ser un dispositivo móvil — y hay
+  // que resolverlo AQUÍ, de forma síncrona y antes de pintar nada,
+  // agregando una clase a <html> — así el CSS ya sabe qué mostrar desde el
+  // primer frame, sin parpadeo.
+  document.documentElement.classList.toggle(
+    'es-standalone',
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    !window._malevoEsMovil()
+  );
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ══ TOKENS · Negro y Dorado Premium ══ */
+:root{--bg:#0A0A0A;--surface:rgba(255,255,255,0.04);--surface-2:rgba(255,255,255,0.07);--surface-3:rgba(255,255,255,0.10);--glass:rgba(255,255,255,0.04);--glass-hover:rgba(255,255,255,0.08);--card-bg:#161616;--card-border:#2A2A2A;--border:#2A2A2A;--border-2:rgba(226,144,35,0.32);--border-hi:rgba(226,144,35,0.5);--border-glow:rgba(226,144,35,0.50);--text:#FFFFFF;--text-2:#A0A0A0;--muted:#707070;--faint:#454545;--accent:#E29023;--accent-2:#FFD573;--accent-deep:#B86E10;--accent-soft:rgba(226,144,35,0.14);--accent-glow:rgba(226,144,35,0.38);--gold:#E29023;--gold-2:#FFD573;--gold-light:#FFD573;--gold-deep:#B86E10;--gold-gradient:linear-gradient(135deg,#FFD573 0%,#E29023 50%,#B86E10 100%);--gold-soft:rgba(226,144,35,0.14);--gold-glow:rgba(226,144,35,0.2);--ok:#E29023;--ok-soft:rgba(226,144,35,0.13);--ok-glow:rgba(226,144,35,0.30);--warn:#e05c5c;--warn-soft:rgba(224,92,92,0.13);--warn-glow:rgba(224,92,92,0.30);--magenta:#E024C3;--cyan:#10C2C4;--amber:#E29023;--amber-soft:rgba(226,144,35,0.13);--white:#ffffff;--white-soft:rgba(255,255,255,0.90);--salsa:#c9455a;--bachata:#9c5a8a;--shadow:0 8px 32px rgba(0,0,0,0.70);--shadow-sm:0 2px 12px rgba(0,0,0,0.55);--shadow-lg:0 24px 64px rgba(0,0,0,0.85);--shadow-gold:0 8px 32px rgba(0,0,0,0.70);--t:0.22s cubic-bezier(0.4,0,0.2,1);--r-sm:10px;--r:16px;--r-lg:22px;--r-xl:28px;--radius:var(--r-lg);--progress-accent:#E29023;--progress-accent-soft:rgba(226,144,35,.25);--stat-number:var(--gold);}
+/* ══════════════════════════════════════════════════════════════════════
+   MODO VERDE — espejo del tema del portal, escalado solo a
+   #modoAlumnoShell (la simulación "Ver como alumno"), NO a todo <body>:
+   el admin sigue viendo su propio panel en dorado siempre; el verde es
+   nada más una vista previa de cómo lo vería el alumno real. Mismo
+   remapeo de variables que portal.html — misma estructura y densidad de
+   color que el dorado, con naranja → verde oscuro, y el neón brillante
+   reservado a un par de detalles puntuales. Ver portal.html para el
+   detalle de cada regla. ══ */
+#modoAlumnoShell.theme-green{
+  --bg-base:#0a0a0a;--bg-header-sidebar:#0d0d0d;--bg-card:#161616;
+  --bg-card-sec:#1a1a1a;--bg-card-hover:#111111;--bg-micro:#0d0d0d;
+  --border-card:#2a2a2a;--border-inner:#1e1e1e;--border-hover:#3a3a3a;--border-divider:#1a1a1a;
+  --text-title:#ffffff;--text-sec:#888888;--text-muted:#606060;--text-dark:#333333;
+  --accent-green:#00ff66;--accent-green-soft:#33ff88;
+  --accent-green-border:rgba(0,255,102,.35);--accent-green-bg:rgba(0,255,102,.09);
+  --accent-green-glow:rgba(0,255,102,.22);--accent-green-deep:#008833;
+  --green-light:#6EE7A0;--green-dark:#1FAF63;--green-deep:#0C5C34;
+  --green-gradient:linear-gradient(135deg,#6EE7A0 0%,#1FAF63 50%,#0C5C34 100%);
+  --green-soft:rgba(31,175,99,.14);--green-glow:rgba(31,175,99,.2);
+  --green-glow-strong:rgba(31,175,99,.38);--green-ok-glow:rgba(31,175,99,.30);
+  --green-border2:rgba(31,175,99,.32);--green-border-hi:rgba(31,175,99,.5);
+  --green-shadow:0 0 32px rgba(31,175,99,.25),0 8px 32px rgba(0,0,0,.70);
+  --green-progress-soft:rgba(31,175,99,.25);
+  --font-title:'Sora',sans-serif;--font-body:'Inter',sans-serif;
+
+  --bg:var(--bg-base);--card-bg:var(--bg-card);--card-border:var(--border-card);
+  --border:var(--border-card);--border-2:var(--green-border2);--border-hi:var(--green-border-hi);
+  --text:var(--text-title);--text-2:var(--text-sec);--muted:var(--text-muted);--faint:var(--text-dark);
+  --accent:var(--green-dark);--accent-2:var(--green-light);--accent-deep:var(--green-deep);
+  --accent-soft:var(--green-soft);--accent-glow:var(--green-glow-strong);
+  --gold:var(--green-dark);--gold-2:var(--green-light);--gold-light:var(--green-light);--gold-deep:var(--green-deep);
+  --gold-gradient:var(--green-gradient);
+  --gold-soft:var(--green-soft);--gold-glow:var(--green-glow);
+  --ok:var(--green-dark);--ok-soft:var(--green-soft);--ok-glow:var(--green-ok-glow);
+  --shadow-gold:var(--green-shadow);
+  --progress-accent:var(--green-dark);--progress-accent-soft:var(--green-progress-soft);
+  --stat-number:var(--green-dark);
+}
+#modoAlumnoShell.theme-green .brand-icon,
+#modoAlumnoShell.theme-green .ma-header-logo-icon{
+  background:linear-gradient(135deg,#0a2414,#080a08) !important;
+  border-color:rgba(31,175,99,.45) !important;}
+
+/* ══════════════════════════════════════════════════════════════════════
+   OVERRIDES DE COMPONENTES — Modo Verde (espejo de portal.html, escalado
+   a #modoAlumnoShell). El neón brillante solo aparece en el botón de pago
+   y el indicador de racha; el resto usa el verde oscuro estructural
+   (--gold, ya remapeado arriba), igual de presente que el naranja en
+   Modo Dorado. ══ */
+#modoAlumnoShell.theme-green .ma-nav-btn.active{color:var(--text-title);background:rgba(255,255,255,.05);}
+#modoAlumnoShell.theme-green .ma-nav-btn.active::after{background:var(--gold);}
+#modoAlumnoShell.theme-green #maDiscTabs .disc-tab.active{color:var(--text-title);}
+#modoAlumnoShell.theme-green #maDiscTabs .disc-tab.active::after{background:var(--gold);}
+#modoAlumnoShell.theme-green .mp-tab.active{background:rgba(255,255,255,.05);color:var(--text-title);}
+#modoAlumnoShell.theme-green .badge.gold{border-color:rgba(31,175,99,.25);}
+#modoAlumnoShell.theme-green .video-row::after{background:var(--gold);}
+#modoAlumnoShell.theme-green .video-row:hover,
+#modoAlumnoShell.theme-green .mp-list-panel .video-row:hover{border-color:var(--border-2);}
+#modoAlumnoShell.theme-green .video-row.active,
+#modoAlumnoShell.theme-green .mp-list-panel .video-row.active{border-color:var(--border-hover);background:rgba(255,255,255,.04);}
+#modoAlumnoShell.theme-green .video-row-num{background:radial-gradient(circle at 50% 32%,rgba(255,255,255,.06),rgba(0,0,0,0) 72%),var(--bg);border-color:var(--border-hover);color:var(--text-sec);}
+#modoAlumnoShell.theme-green .video-row:hover .video-row-num{border-color:var(--gold);box-shadow:0 0 10px var(--gold-glow);}
+#modoAlumnoShell.theme-green .video-row.active .video-row-num{background:var(--gold);border-color:var(--gold);color:#04140a;box-shadow:0 0 12px var(--gold-glow);}
+#modoAlumnoShell.theme-green .alumno-status.active .dot,
+#modoAlumnoShell.theme-green .vi-done{background:var(--gold);box-shadow:0 0 6px var(--gold-glow);}
+#modoAlumnoShell.theme-green .video-item.calent-item:hover{box-shadow:0 0 16px var(--gold-glow);}
+#modoAlumnoShell.theme-green .mp-header-logo .mp-logo-m{color:var(--text-title);text-shadow:none;}
+#modoAlumnoShell.theme-green .mp-row-menu-pop button:hover{background:var(--gold-soft);color:var(--gold);}
+#modoAlumnoShell.theme-green .mp-bb-play{box-shadow:0 0 10px rgba(255,255,255,.15);}
+#modoAlumnoShell.theme-green .mp-bb-seek::-webkit-slider-thumb,
+#modoAlumnoShell.theme-green .mp-bb-vol::-webkit-slider-thumb{box-shadow:0 0 6px rgba(255,255,255,.2);}
+#modoAlumnoShell.theme-green .mp-bb-seek::-moz-range-thumb,
+#modoAlumnoShell.theme-green .mp-bb-vol::-moz-range-thumb{box-shadow:0 0 6px rgba(255,255,255,.2);}
+/* Racha de asistencia: uno de los 1-2 detalles puntuales con permiso de neón */
+#modoAlumnoShell.theme-green .racha-fuego-icon{filter:drop-shadow(0 0 14px var(--accent-green-glow)) drop-shadow(0 0 24px var(--accent-green-glow));}
+#modoAlumnoShell.theme-green .racha-bar-fill{background:linear-gradient(90deg,var(--accent-green-soft),var(--accent-green));box-shadow:0 0 10px var(--accent-green-glow);}
+#modoAlumnoShell.theme-green .racha-video-circulo.encendido{background:radial-gradient(circle at 50% 32%,var(--accent-green-soft),var(--accent-green));border-color:var(--accent-green);color:#04140a;box-shadow:0 0 10px var(--accent-green-glow),0 0 18px var(--accent-green-glow);}
+#modoAlumnoShell.theme-green .cal-mes-opcion.activa{background:rgba(255,255,255,.06);color:var(--text-title);}
+#modoAlumnoShell.theme-green .cal-day-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px var(--gold-glow);}
+#modoAlumnoShell.theme-green .cal-day-hoy-gold{background:var(--gold);box-shadow:0 0 8px var(--gold-glow);}
+#modoAlumnoShell.theme-green .cal-legend-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px var(--gold-glow);}
+#modoAlumnoShell.theme-green #maNivelPills .nivel-pill:hover:not(.locked){border-color:var(--gold);color:var(--gold);background:var(--gold-soft);}
+#modoAlumnoShell.theme-green #maNivelPills .nivel-pill.active{background:rgba(255,255,255,.06);border-color:var(--border-hover);color:var(--text-title);}
+#modoAlumnoShell.theme-green .clase-mini:hover{border-color:var(--gold);}
+#modoAlumnoShell.theme-green .clase-mini.active{border-color:var(--border-hover);background:rgba(255,255,255,.04);}
+#modoAlumnoShell.theme-green .video-status-bar:hover{background:rgba(31,175,99,.04);border-top-color:var(--gold);}
+#modoAlumnoShell.theme-green [class*="ref-hero-card"]{border-color:var(--gold);background:linear-gradient(135deg,rgba(31,175,99,.06) 0%,rgba(12,92,52,.03) 55%,transparent 100%);box-shadow:none;}
+#modoAlumnoShell.theme-green [class*="ref-hero-title"]{color:var(--gold-2);text-shadow:none;}
+#modoAlumnoShell.theme-green .ref-discount-box{border-color:rgba(31,175,99,.12);}
+#modoAlumnoShell.theme-green .ref-discount-box.ref-discount-active{background:rgba(31,175,99,.08);border-color:var(--gold);box-shadow:none;}
+/* Cursos Exclusivos (paleta propia #D4A359/212,163,89) y su modal
+   "curso-detalle" → equivalente verde claro, misma estructura */
+#modoAlumnoShell.theme-green .cx-subtitulo,
+#modoAlumnoShell.theme-green .cx-acc-chevron{color:var(--green-light);}
+#modoAlumnoShell.theme-green .curso-detalle-meta{color:var(--text-sec);}
+#modoAlumnoShell.theme-green .cx-hero-deco{border-color:rgba(110,231,160,.3);}
+#modoAlumnoShell.theme-green .cx-pill{border-color:rgba(110,231,160,.4);}
+#modoAlumnoShell.theme-green .cx-pill:hover{border-color:var(--green-light);color:var(--green-light);}
+#modoAlumnoShell.theme-green .cx-pill.active{background:rgba(110,231,160,.14);border-color:var(--green-light);color:var(--green-light);box-shadow:0 0 0 3px rgba(110,231,160,.14),0 0 14px rgba(110,231,160,.35);}
+#modoAlumnoShell.theme-green .cx-acc{border-color:rgba(110,231,160,.3);}
+#modoAlumnoShell.theme-green .cx-acc.open .cx-acc-head{border-bottom-color:rgba(110,231,160,.25);}
+#modoAlumnoShell.theme-green .cx-card{border-color:rgba(110,231,160,.45);}
+#modoAlumnoShell.theme-green .cx-card:hover{box-shadow:0 8px 24px rgba(110,231,160,.2);}
+#modoAlumnoShell.theme-green .cx-card-play{background:rgba(110,231,160,.95) !important;}
+#modoAlumnoShell.theme-green .cx-lock-badge{background:rgba(0,0,0,.55);border-color:var(--green-light) !important;}
+#modoAlumnoShell.theme-green .cx-lock-badge-ico,
+#modoAlumnoShell.theme-green .cx-lock-badge-txt{color:var(--green-light) !important;}
+#modoAlumnoShell.theme-green .curso-detalle{border-color:rgba(110,231,160,.3) !important;}
+#modoAlumnoShell.theme-green .curso-detalle-video-row:hover,
+#modoAlumnoShell.theme-green .curso-detalle-video-row.playing{border-color:var(--gold) !important;background:var(--gold-soft) !important;}
+#modoAlumnoShell.theme-green .curso-detalle-video-num{border-color:var(--border-hover) !important;color:var(--text-sec) !important;}
+/* Botón "Confirmar pago" (si aparece en la simulación): el otro detalle
+   puntual con permiso de neón. */
+#modoAlumnoShell.theme-green #btnPagar{background:var(--gold-gradient) !important;color:#0a0a0a !important;}
+#modoAlumnoShell.theme-green #btnPagar:hover{box-shadow:0 0 0 1px var(--accent-green-border),0 6px 20px var(--accent-green-glow);}
+/* Red de seguridad: cualquier estilo inline que aún hardcodee el naranja
+   dentro de la simulación "Ver como alumno" se traduce a verde oscuro. */
+#modoAlumnoShell.theme-green [style*="226,144,35"]{
+  background:rgba(31,175,99,.09) !important;
+  border-color:rgba(31,175,99,.35) !important;
+  box-shadow:none !important;
+}
+#modoAlumnoShell.theme-green [style*="#E29023"]{
+  background:linear-gradient(135deg,var(--green-light),var(--green-dark)) !important;
+  -webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;
+}
+#modoAlumnoShell.theme-green [style*="212,163,89"]{background:rgba(110,231,160,.09) !important;}
+
+/* ── Toggle "Modo Dorado / Modo Verde" (idéntico al del portal real) ── */
+.theme-toggle-btn{display:flex;align-items:center;gap:7px;background:transparent;
+  border:none;cursor:pointer;padding:2px;font-family:inherit;}
+.theme-toggle-track{position:relative;width:42px;height:23px;border-radius:20px;
+  background:rgba(226,144,35,.12);border:1px solid rgba(226,144,35,.35);
+  transition:background .25s,border-color .25s;flex:0 0 auto;}
+.theme-toggle-btn.on .theme-toggle-track{background:rgba(0,255,102,.1);border-color:rgba(0,255,102,.4);}
+.theme-toggle-thumb{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;
+  background:var(--gold-gradient);box-shadow:0 2px 6px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;font-size:9px;
+  transition:transform .28s cubic-bezier(.4,0,.2,1),background .25s;transform:translateX(0);}
+.theme-toggle-btn.on .theme-toggle-thumb{transform:translateX(19px);
+  background:linear-gradient(135deg,#33ff88,#00ff66,#008833);}
+.theme-toggle-label{font-size:9.5px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.8px;font-weight:600;white-space:nowrap;display:none;}
+@media(min-width:640px){ .theme-toggle-label{display:inline;} }
+</style>
+</head>
+<style>
+/* ══ BASE + HEADER + NAV ══ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+img,video{max-width:100%;}
+html{scroll-behavior:smooth;height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+/* Formato de app real en móvil: sin rebote de "página web" al hacer scroll
+   en los extremos, sin resaltado azul al tocar, sin doble-tap-zoom en
+   botones, y con el alto real de la ventana (100dvh) para que la barra de
+   direcciones del navegador no deje huecos en blanco al abrir/cerrarse. */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(226,144,35,0.035) 0%,transparent 60%);}
+body>*{position:relative;z-index:1;}
+h1,h2,h3,h4,.sora{font-family:'Sora','Inter',sans-serif;}
+a{color:var(--gold);text-decoration:none;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26);}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes scaleInModal{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.9}}
+@keyframes toastIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(28px)}}
+@keyframes flash-success{0%{background:transparent;}35%{background:rgba(62,200,122,0.13);}100%{background:transparent;}}
+@keyframes rippleAnim{to{transform:scale(2.8);opacity:0;}}
+.ripple-span{position:absolute;border-radius:50%;background:rgba(255,255,255,.55);
+  transform:scale(0);animation:rippleAnim .6s cubic-bezier(.25,.46,.45,.94);pointer-events:none;z-index:5;}
+.btn,.nav-btn,.pnav-btn{position:relative;overflow:hidden;}
+#mainHeader{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;background:rgba(10,10,10,0.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,.1);position:sticky;top:0;z-index:40;box-shadow:0 2px 16px rgba(0,0,0,.6);}
+/* viewport-fit=cover hace que el contenido se extienda bajo el notch/isla
+   dinámica en iOS y bajo la barra de gestos en Android; sin este padding
+   el header quedaría tapado por esas zonas al instalar como PWA. */
+body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);}
+
+/* ══ SIDEBAR LAYOUT ══ */
+#appShell{display:grid;grid-template-rows:auto 1fr;grid-template-columns:220px 1fr;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+/* #mainHeader ocupa grid-column:1/-1 sin overflow propio → por defecto
+   hereda min-width:auto (el ancho mínimo de su propio contenido en una
+   fila sin wrap). En pantallas angostas eso puede forzar a todo el grid
+   (y por tanto la página) a ser más ancho que el viewport — el mismo
+   patrón de desbordamiento horizontal detectado y corregido en el portal
+   del alumno (portal.html). min-width:0 anula ese mínimo automático;
+   overflow-x:hidden es la red de seguridad. */
+#mainHeader{grid-column:1/-1;grid-row:1;min-width:0;overflow-x:hidden;}
+#mainNav{
+  grid-column:1;grid-row:2;
+  position:sticky;top:57px;height:calc(100vh - 57px);height:calc(100dvh - 57px);overflow-y:auto;overflow-x:hidden;
+  background:rgba(10,10,10,.97);
+  border-right:1px solid var(--card-border);
+  padding:20px 12px;
+  display:flex;flex-direction:column;gap:4px;
+  scrollbar-width:thin;
+}
+#mainContent{grid-column:2;grid-row:2;padding:34px 36px;overflow-x:hidden;
+  overflow-y:auto;height:calc(100vh - 57px);height:calc(100dvh - 57px);}
+
+.nav-btn{
+  background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:10px 14px;border-radius:var(--r-sm);cursor:pointer;font-size:13px;font-weight:500;
+  transition:all .2s cubic-bezier(.4,0,.2,1);font-family:'Inter',sans-serif;
+  white-space:nowrap;text-align:left;width:100%;
+  display:flex;align-items:center;gap:9px;
+}
+.nav-btn:hover{color:var(--white-soft);background:rgba(255,255,255,.07);}
+.nav-btn.active{
+  background:var(--card-bg);
+  color:var(--text);font-weight:600;
+  border-color:var(--card-border);border-left:3px solid var(--gold);
+  box-shadow:0 2px 10px rgba(0,0,0,.4);
+}
+/* Separador de sección en el sidebar */
+.nav-sep{
+  height:1px;background:rgba(226,144,35,.08);margin:8px 4px;
+}
+
+/* ══ CALENDARIO SEMANAL (pestaña Clases) ══ */
+.cal-grid-admin{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
+.cal-col{background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:var(--r-lg);padding:16px 12px;min-height:calc(100vh - 230px);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+  transition:border-color .2s;}
+.cal-col.is-today{border-color:rgba(226,144,35,.35);}
+.cal-col-label{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;
+  letter-spacing:2px;text-align:center;margin-bottom:16px;padding-bottom:12px;padding-top:2px;
+  border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;gap:6px;}
+.cal-col.is-today .cal-col-label{color:var(--text);font-weight:800;}
+.cal-col-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 6px var(--gold-glow);}
+.cal-col-body{flex:1;display:flex;flex-direction:column;gap:10px;}
+.cal-card{position:relative;border-radius:12px;
+  padding:12px 14px 11px;cursor:pointer;background:#1a1a1a;border:1px solid var(--card-border);
+  transition:.2s cubic-bezier(.4,0,.2,1);}
+.cal-card:hover{border-color:var(--border-hi);background:#1f1f1f;}
+.cal-card-time{font-size:12.5px;color:var(--white);font-weight:700;padding-right:20px;}
+.cal-card-name{font-weight:700;font-size:13.5px;color:var(--white);margin:3px 0 1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px;}
+.cal-card-disc{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.cal-card-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cal-card-count{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:4px;}
+.cal-card-pct{font-size:11.5px;font-weight:700;color:var(--white);}
+.cal-card-bar{height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;}
+.cal-card-bar-fill{height:100%;border-radius:3px;background:var(--gold);transition:width .5s ease-in-out;}
+.cal-card-edit{position:absolute;top:10px;right:10px;background:transparent;border:none;
+  color:var(--faint);cursor:pointer;font-size:12px;padding:3px 5px;border-radius:6px;
+  line-height:1;transition:.2s;opacity:0;}
+.cal-card:hover .cal-card-edit{opacity:1;}
+.cal-card-edit:hover{color:var(--gold-2);background:rgba(255,255,255,.08);}
+.cal-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:13px;}
+
+@media(max-width:1300px) and (min-width:1101px){
+  .cal-grid-admin{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:1100px) and (min-width:769px){
+  .cal-grid-admin{grid-template-columns:repeat(3,1fr);}
+  .cal-col{min-height:520px;}
+}
+@media(max-width:768px){
+  .cal-grid-admin{grid-template-columns:repeat(2,1fr);}
+  .cal-col{min-height:320px;padding:14px 10px;}
+}
+
+/* ══ RESPONSIVE — barra de contexto de "Modo Alumno" (volver al panel admin) ══ */
+@media(max-width:640px){
+  .ma-topbar{padding:10px 14px;gap:8px;}
+  .ma-topbar-info{gap:6px;}
+  .ma-topbar-badge{padding:4px 9px;font-size:10px;}
+  .ma-topbar-badge-sub{display:none;}
+  .ma-topbar-name{display:none;}
+  .ma-topbar-back{padding:6px 11px;font-size:11px;}
+}
+
+/* ══ RESPONSIVE — sidebar colapsado en móvil ══ */
+@media(max-width:768px){
+  #appShell{grid-template-columns:1fr;}
+  #mainNav{
+    grid-column:1;grid-row:2;
+    position:fixed;top:57px;left:0;bottom:0;width:80%;max-width:300px;z-index:300;
+    transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:4px 0 24px rgba(0,0,0,.6);
+    pointer-events:auto;
+  }
+  #mainNav.open{transform:translateX(0);}
+  #mainNav .nav-btn{pointer-events:auto;}
+  #mainContent{grid-column:1;grid-row:2;padding:20px 16px;overflow-x:hidden;
+    overflow-y:auto;height:calc(100vh - 57px);height:calc(100dvh - 57px);}
+  #sidebarToggle{display:flex!important;}
+  /* El overlay solo cubre el área fuera del menú, así nunca puede tapar
+     sus opciones aunque haya algún conflicto de apilamiento (z-index). */
+  #sidebarOverlay.open{left:min(80%,300px);}
+
+  /* Header compacto para que no desborde en pantallas angostas */
+  #mainHeader{padding:10px 12px;gap:8px;}
+  #mainHeader>div{gap:8px!important;}
+  #estadoSync{display:none;}
+  .btn-salir{padding:6px 10px;font-size:11px;}
+}
+@media(max-width:600px){
+  #mainBrandSub{display:none;}
+}
+
+/* ── Header ── */
+.brand-icon{height:40px;width:40px;border-radius:13px;flex:0 0 auto;
+  background:linear-gradient(135deg,#2a1d00,#0a0800);
+  border:1px solid rgba(226,144,35,.45);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.45);}
+.brand-icon span{font-family:'Sora',sans-serif;font-size:19px;font-weight:800;
+  background:linear-gradient(135deg,#E29023,#E29023);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+#estadoSync{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  color:var(--muted);padding:5px 13px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(226,144,35,.18);border-radius:30px;}
+#estadoSync .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:0 0 auto;}
+#userBadge{font-size:12px;font-weight:500;color:var(--text-2);padding:6px 14px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(226,144,35,.18);border-radius:30px;
+  display:flex;align-items:center;flex:0 0 auto;}
+#userBadge .ub-full{white-space:nowrap;}
+#userBadge .ub-short{display:none;color:var(--gold);font-weight:700;font-size:11px;}
+@media(max-width:768px){
+  #userBadge{padding:0;width:30px;height:30px;border-radius:50%;justify-content:center;}
+  #userBadge .ub-full{display:none;}
+  #userBadge .ub-short{display:inline-flex;}
+}
+.btn-salir{background:transparent;border:1px solid rgba(255,255,255,.14);color:var(--muted);
+  padding:7px 14px;border-radius:var(--r-sm);cursor:pointer;font-size:12px;
+  font-family:inherit;transition:var(--t);}
+.btn-salir:hover{border-color:var(--warn);color:var(--warn);}
+/* Botón hamburguesa (solo móvil) */
+#sidebarToggle{display:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:var(--muted);padding:7px 11px;border-radius:var(--r-sm);cursor:pointer;font-size:16px;
+  font-family:inherit;transition:var(--t);align-items:center;justify-content:center;}
+#sidebarToggle:hover{color:var(--gold-2);border-color:rgba(226,144,35,.3);}
+.nav-section-label{font-size:9.5px;text-transform:uppercase;letter-spacing:1.8px;
+  color:var(--faint);font-weight:700;padding:4px 8px;margin-top:8px;}
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:299;}
+#sidebarOverlay.open{display:block;}
+</style>
+<style>
+/* ══ BOTONES ══ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 20px;border-radius:var(--r-sm);cursor:pointer;
+  font-size:13px;font-weight:600;transition:all .2s cubic-bezier(.4,0,.2,1);
+  font-family:'Inter',sans-serif;white-space:nowrap;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-deep));
+  color:#fff;
+  box-shadow:0 4px 14px var(--accent-glow),inset 0 1px 0 rgba(255,255,255,.12);
+  position:relative;overflow:hidden;
+}
+.btn::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);
+  opacity:0;transition:.2s;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 7px 22px var(--accent-glow);}
+.btn:hover::after{opacity:1;}
+.btn:active{transform:translateY(0);transition-duration:.08s;}
+.btn.sec{background:rgba(255,255,255,.04);border:1px solid var(--border-2);color:var(--text-2);box-shadow:none;}
+.btn.sec:hover{border-color:var(--gold);color:var(--gold-2);background:var(--gold-soft);transform:translateY(-2px);box-shadow:0 4px 16px var(--gold-glow);}
+.btn.ok{background:linear-gradient(135deg,var(--ok),#2a9a5a);box-shadow:0 4px 14px var(--ok-glow),inset 0 1px 0 rgba(255,255,255,.12);}
+.btn.ok:hover{box-shadow:0 7px 22px var(--ok-glow);transform:translateY(-2px);}
+.btn.warn{background:transparent;border:1px solid rgba(224,92,92,.4);color:var(--warn);box-shadow:none;}
+.btn.warn:hover{background:var(--warn-soft);border-color:var(--warn);box-shadow:0 4px 14px var(--warn-glow);transform:translateY(-2px);}
+.btn.gold{background:var(--gold-gradient);color:#1a1000;box-shadow:0 4px 14px var(--gold-glow);}
+.btn.sm{padding:6px 13px;font-size:11.5px;border-radius:8px;}
+
+/* ══ INPUTS ══ */
+input,select,textarea{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+  color:var(--text);padding:11px 14px;border-radius:var(--r-sm);
+  font-size:13.5px;font-family:inherit;transition:all .2s;width:100%;
+}
+input::placeholder,textarea::placeholder{color:var(--muted);}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--accent-soft),0 0 16px var(--accent-glow);
+  background:rgba(91,141,238,.07);
+}
+select option{background:#131320;color:var(--text);}
+
+/* ══ BADGES ══ */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;
+  border-radius:30px;font-size:11px;font-weight:600;letter-spacing:.3px;}
+.badge.ok  {background:var(--ok-soft);color:var(--ok);border:1px solid rgba(62,200,122,.2);}
+.badge.warn{background:var(--warn-soft);color:var(--warn);border:1px solid rgba(224,92,92,.2);}
+.badge.info{background:var(--accent-soft);color:var(--accent-2);border:1px solid rgba(91,141,238,.2);}
+.badge.muted{background:var(--glass);color:var(--text-2);border:1px solid var(--border-2);}
+.badge.amber{background:var(--amber-soft);color:var(--amber);border:1px solid rgba(226,144,35,.2);}
+.badge.gold{background:var(--gold-soft);color:var(--gold-2);border:1px solid rgba(226,144,35,.25);}
+
+/* ══ CARDS GLASSMORPHISM ══ */
+.card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:var(--r-lg);padding:24px 26px;
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+}
+.card::before{content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 50%);pointer-events:none;}
+.card:hover{
+  border-color:var(--border-hi);transform:translateY(-3px);
+  box-shadow:0 12px 40px rgba(0,0,0,.6);
+}
+.card.glow:hover{box-shadow:0 12px 40px rgba(0,0,0,.6);}
+.card.stat .val{font-family:'Sora',sans-serif;font-size:34px;font-weight:700;
+  margin-top:10px;letter-spacing:-.5px;}
+.card.stat .lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:30px;}
+</style>
+<style>
+/* ══ TABLAS — filas "flotantes" tipo tarjeta, no rejilla de hoja de cálculo ══ */
+.tbl-wrap{background:transparent;border:none;border-radius:0;overflow:visible;box-shadow:none;}
+table{width:100%;border-collapse:separate;border-spacing:0 10px;}
+thead th{padding:0 18px 6px;text-align:left;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);border:none;background:transparent;}
+tbody tr{background:var(--card-bg);
+  border:1px solid var(--card-border);
+  transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s cubic-bezier(.4,0,.2,1),border-color .2s;}
+tbody tr:hover{transform:translateY(-2px);border-color:var(--border-hi);
+  box-shadow:0 10px 28px rgba(0,0,0,.5);}
+tbody tr td{padding:15px 18px;font-size:13px;border-top:1px solid var(--card-border);
+  border-bottom:1px solid var(--card-border);}
+tbody tr td:first-child{border-left:1px solid var(--card-border);border-radius:var(--r) 0 0 var(--r);}
+tbody tr td:last-child{border-right:1px solid var(--card-border);border-radius:0 var(--r) var(--r) 0;}
+tbody tr:hover td{background:rgba(226,144,35,.03);}
+
+/* ══ MODALES ══ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  z-index:50;align-items:flex-start;justify-content:center;overflow-y:auto;padding:48px 16px;}
+.modal-overlay.open{display:flex;animation:fadeOverlay .2s ease;}
+.modal-box{
+  background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:var(--r-xl);padding:32px;width:100%;max-width:540px;
+  box-shadow:var(--shadow-lg);
+  animation:scaleInModal .3s cubic-bezier(.34,1.36,.64,1);position:relative;
+}
+.modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(226,144,35,.65),transparent);
+  border-radius:var(--r-xl) var(--r-xl) 0 0;}
+.modal-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;
+  margin-bottom:20px;letter-spacing:-.3px;}
+
+/* ══ LAYOUT HELPERS ══ */
+.section-head{display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;margin-bottom:22px;}
+.h2{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+  color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:18px;}
+.h2::before{content:'';width:3px;height:14px;border-radius:2px;
+  background:linear-gradient(var(--accent),var(--accent-deep));}
+.toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.label-field{font-size:11px;color:var(--muted);display:block;
+  margin:14px 0 5px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;}
+.vacio{text-align:center;color:var(--muted);padding:56px 24px;font-size:14px;
+  background:rgba(255,255,255,.015);border:1px dashed var(--border-2);border-radius:var(--r-lg);}
+.sync-online{color:var(--ok)!important;}
+.sync-offline{color:var(--warn)!important;}
+
+/* ── Checkbox cards ── */
+.chk-card{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 14px;
+  border-radius:var(--r-sm);cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);
+  transition:border-color .2s;
+}
+.chk-card:hover{border-color:rgba(226,144,35,.28);}
+/* Etiqueta de sección dentro de modal */
+.sect-lbl{
+  font-size:10px;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--muted);font-weight:700;margin-bottom:10px;
+  padding-top:2px;
+}
+
+/* ══ ACORDEÓN — panel expandible ease-in-out ══ */
+.acc-toggle{background:transparent;border:none;color:var(--muted);cursor:pointer;
+  font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;
+  padding:4px 2px;font-family:'Inter',sans-serif;transition:color .2s;
+  position:relative;overflow:hidden;}
+.acc-toggle:hover{color:var(--text);}
+.acc-toggle .chev{display:inline-block;transition:transform .3s cubic-bezier(.4,0,.2,1);font-size:9px;}
+.acc-toggle.open .chev{transform:rotate(180deg);}
+.acc-body{max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .35s ease-in-out,opacity .25s ease-in-out,margin-top .35s ease-in-out;}
+.acc-body.open{max-height:420px;opacity:1;margin-top:12px;}
+
+/* ══ CUADRÍCULA DE TARJETAS — ALUMNOS ══
+   Paleta prácticamente monocromática (negro/blanco/grises). El único color
+   permitido es un verde diminuto y exclusivo para el indicador "Activo". ══ */
+.alumnos-layout{display:flex;gap:16px;align-items:flex-start;}
+.alumnos-grid-wrap{flex:1;min-width:0;}
+.alumnos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;}
+@keyframes cardEntrada{from{opacity:0;transform:translateY(14px) scale(.97);}to{opacity:1;transform:none;}}
+.alumno-card{
+  background:linear-gradient(135deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.02) 100%);
+  border:1px solid rgba(255,255,255,.1);border-radius:var(--r-lg);padding:20px 22px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+  animation:cardEntrada .4s cubic-bezier(.4,0,.2,1) both;cursor:pointer;
+}
+.alumno-card:hover{border-color:var(--border-hi);transform:translateY(-3px);
+  box-shadow:0 14px 36px rgba(0,0,0,.55);}
+.alumno-card-top{display:flex;align-items:flex-start;gap:13px;}
+.alumno-avatar{flex:0 0 auto;width:44px;height:44px;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+  color:var(--text-2);font-family:'Sora',sans-serif;font-weight:700;font-size:14px;}
+.alumno-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.alumno-name{background:none;border:none;padding:0;cursor:pointer;text-align:left;
+  font-weight:700;color:var(--text);font-size:14.5px;font-family:'Sora',sans-serif;
+  letter-spacing:-.1px;transition:color .15s;}
+.alumno-name:hover{color:var(--white);}
+.alumno-tel{font-size:12px;color:var(--text-2);font-weight:600;text-decoration:none;
+  display:inline-flex;align-items:center;gap:5px;margin-top:2px;transition:color .15s;}
+.alumno-tel:hover{color:var(--text);}
+.alumno-badges{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:9px;}
+.alumno-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:30px;
+  font-size:10.5px;font-weight:600;background:rgba(255,255,255,.05);color:var(--text-2);
+  border:1px solid rgba(255,255,255,.12);}
+.alumno-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:600;}
+.alumno-status .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:0 0 auto;}
+.alumno-status.active .dot{background:var(--ok);box-shadow:0 0 5px rgba(226,144,35,.55);}
+.alumno-actions{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;}
+.alumno-action{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);
+  color:var(--text-2);padding:6px 13px;border-radius:8px;font-size:11.5px;font-weight:600;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;position:relative;overflow:hidden;}
+.alumno-action:hover{border-color:rgba(255,255,255,.32);color:var(--text);background:rgba(255,255,255,.08);}
+.alumno-acc-row{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.06);}
+.alumno-acc-row:last-child{border-bottom:none;}
+.alumno-acc-row span:first-child{color:var(--muted);}
+.alumno-acc-row span:last-child{color:var(--text-2);font-weight:500;text-align:right;}
+
+/* ══ Índice alfabético lateral A-Z ══ */
+.az-index{position:sticky;top:96px;flex:0 0 26px;display:flex;flex-direction:column;
+  gap:1px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;padding:10px 4px;align-self:flex-start;}
+.az-index button{background:transparent;border:none;color:var(--faint);font-size:9.5px;
+  font-weight:700;font-family:'Inter',sans-serif;cursor:default;padding:2px 0;
+  border-radius:5px;transition:all .15s;opacity:.4;}
+.az-index button.has{color:var(--text-2);cursor:pointer;opacity:1;}
+.az-index button.has:hover{color:var(--white);background:rgba(255,255,255,.09);}
+@media(max-width:900px){.az-index{display:none;}}
+
+/* ══ VÍDEOS — tarjetas por disciplina · nivel ══ */
+.videos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.video-group-card{position:relative;background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:var(--r-lg);padding:20px 22px 18px;overflow:hidden;transition:border-color .2s;}
+.vg-name{font-size:14.5px;font-weight:700;color:var(--white);margin-bottom:14px;}
+.vg-count{display:flex;align-items:baseline;gap:7px;margin-bottom:12px;}
+.vg-num{font-family:'Sora',sans-serif;font-size:32px;font-weight:800;color:var(--gold);line-height:1;}
+.vg-label{font-size:10.5px;color:var(--muted);letter-spacing:1px;font-weight:600;}
+.vg-bar{height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:16px;}
+.vg-bar-fill{height:100%;border-radius:3px;background:var(--gold);transition:width .5s ease-in-out;}
+.vg-foot{display:flex;align-items:center;justify-content:space-between;}
+.vg-disc{font-size:12px;color:var(--muted);}
+.vg-link{background:transparent;border:none;color:var(--text-2);font-size:12.5px;font-weight:600;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:color .2s;padding:0;}
+.vg-link:hover{color:var(--gold);}
+
+.pago-cuota-confirmar-btn{margin-top:8px;width:100%;padding:12px 16px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);
+  color:#ffffff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .18s;}
+.pago-cuota-confirmar-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.32);}
+
+/* ── Modal "Pagar cuota / Renovación" simulado ── */
+.pago-cuota-overlay{position:fixed;inset:0;z-index:950;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:fadeOverlay .2s ease both;}
+.pago-cuota-card{position:relative;width:100%;max-width:380px;
+  background:#1a1a1a;border:1px solid rgba(255,255,255,.14);border-radius:20px;
+  padding:30px 24px 24px;box-shadow:0 24px 64px rgba(0,0,0,.7);
+  text-align:center;animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.pago-cuota-close{position:absolute;top:10px;right:10px;width:30px;height:30px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.4);
+  color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;}
+.pago-cuota-titulo{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:#fff;margin:0 0 6px;}
+.pago-cuota-desc{font-size:12.5px;color:#aaa;line-height:1.5;margin:0 0 16px;}
+
+/* ══ Filas de lección del reproductor simulado (Gestionar → nivel → panel) ══ */
+.video-row{position:relative;display:flex;align-items:center;gap:14px;padding:12px 16px;
+  border-radius:10px;background:var(--card-bg);border:1px solid var(--card-border);
+  cursor:pointer;transition:all .2s;overflow:hidden;}
+.video-row::after{content:'';position:absolute;top:8px;bottom:8px;right:0;width:3px;
+  border-radius:2px 0 0 2px;background:var(--gold);opacity:0;transition:opacity .2s;}
+.video-row:hover{border-color:rgba(226,144,35,.4);}
+.video-row:hover::after{opacity:1;}
+.video-row.active{border-color:var(--gold);background:rgba(226,144,35,.05);}
+/* Redondel numerado con anillo dorado — estilo "premium" (referencia:
+   reproductor de música con círculos dorados numerados). */
+.video-row-num{width:28px;height:28px;border-radius:50%;
+  background:radial-gradient(circle at 50% 32%,rgba(226,144,35,.16),rgba(0,0,0,0) 72%),var(--bg);
+  border:1.5px solid rgba(226,144,35,.4);display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--gold-2);flex:0 0 auto;transition:all .2s;}
+.video-row:hover .video-row-num{border-color:var(--gold);box-shadow:0 0 10px rgba(226,144,35,.35);}
+.video-row.visto .video-row-num{border-color:var(--gold);}
+.video-row.active .video-row-num{background:var(--gold);border-color:var(--gold);color:#0a0a0a;
+  box-shadow:0 0 14px rgba(226,144,35,.55);}
+.video-row-title{font-size:13px;font-weight:600;color:var(--white);}
+.video-row-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.video-row-arrow{color:var(--gold);font-size:12px;flex:0 0 auto;opacity:0;transition:opacity .2s;}
+.video-row.active .video-row-arrow{opacity:1;}
+.video-row .vi-done{position:absolute;top:50%;right:14px;transform:translateY(-50%);
+  width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(226,144,35,.7);}
+
+/* Tarjetas de grilla tipo "Calentamiento y estiramiento" (espejo de portal.html) */
+.video-item{position:relative;border-radius:var(--r);padding:14px 16px;cursor:pointer;
+  background:var(--card-bg);border:1px solid var(--card-border);
+  transition:all .2s;display:flex;flex-direction:column;gap:8px;}
+.video-item:hover{border-color:var(--gold);transform:translateY(-2px);}
+.video-item.playing{border-color:var(--gold);}
+.vi-title{font-size:13px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px;}
+.vi-disc{font-size:11px;color:var(--muted);margin-top:2px;}
+.video-item .vi-done{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 6px rgba(226,144,35,.6);}
+.video-item.calent-item{border-color:var(--card-border);}
+.video-item.calent-item:hover{box-shadow:0 0 16px rgba(226,144,35,.35);}
+#maEventosCarouselCard{background:var(--bg);border-color:transparent;}
+#maEventosCarouselCard:hover{border-color:transparent;transform:none;}
+
+/* ── "Mi Playlist" — estructura vertical (espejo de portal.html): encabezado
+   (título+logo) → pestañas (Favoritos | desplegable Playlists) → panel
+   único de lista con scroll propio → reproductor fijo justo debajo. ── */
+.mp-shell{background:var(--bg);border-color:transparent;}
+.mp-shell:hover{border-color:transparent;transform:none;}
+.mp-header-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:22px 26px 16px;border-bottom:none;}
+.mp-header-desc{font-size:12px;color:var(--muted);margin:0;}
+.mp-header-logo{display:flex;align-items:center;gap:9px;flex:0 0 auto;}
+.mp-header-logo .mp-logo-m{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:var(--gold-2);
+  line-height:1;text-shadow:0 0 10px rgba(226,144,35,.3);}
+.mp-logo-text{display:flex;flex-direction:column;line-height:1.25;}
+.mp-logo-name{font-size:11px;font-weight:700;letter-spacing:2.5px;color:var(--white);}
+.mp-logo-sub{font-size:7.5px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;}
+
+.mp-tabs{display:flex;gap:10px;padding:14px 26px;border-bottom:none;}
+.mp-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--card-border);color:var(--text-2);font-size:12.5px;font-weight:600;
+  font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;-webkit-appearance:none;
+  text-align:center;text-align-last:center;}
+.mp-tab:hover{background:var(--surface-2);color:var(--white);}
+.mp-tab.active{background:rgba(226,144,35,.12);border-color:var(--border-hi);color:var(--gold);}
+
+.mp-list-header{padding:12px 26px 0;font-size:11px;color:var(--muted);}
+.mp-list-panel{padding:10px 26px 16px;flex:1;min-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.mp-list-panel .video-row{position:relative;background:transparent;border-color:transparent;}
+.mp-list-panel .video-row:hover{border-color:rgba(226,144,35,.4);}
+.mp-list-panel .video-row.active{border-color:var(--gold);background:rgba(226,144,35,.05);}
+
+.video-row-heart{font-size:13px;color:var(--muted);cursor:pointer;flex:0 0 auto;padding:2px 5px;
+  transition:color .2s,transform .15s;}
+.video-row-heart:hover{transform:scale(1.18);color:var(--gold-2);}
+.video-row-heart.fav{color:var(--gold);}
+.video-row-menu{font-size:14px;color:var(--muted);cursor:pointer;flex:0 0 auto;padding:2px 6px;transition:color .15s;}
+.video-row-menu:hover{color:var(--white);}
+.mp-row-menu-pop{position:absolute;right:8px;top:100%;margin-top:4px;background:var(--card-bg);
+  border:1px solid var(--card-border);border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.45);z-index:5;overflow:hidden;}
+.mp-row-menu-pop button{display:block;width:100%;padding:9px 16px;background:none;border:none;color:var(--text-2);
+  font-size:11.5px;text-align:left;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.mp-row-menu-pop button:hover{background:rgba(226,144,35,.1);color:var(--gold-2);}
+
+.mp-player{display:flex;flex-direction:column;gap:10px;padding:14px 26px 18px;
+  border-top:none;background:transparent;}
+.mp-bb-row1{display:flex;align-items:center;gap:14px;min-width:0;}
+.mp-bb-row2{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+.mp-bb-transport{display:flex;align-items:center;gap:14px;flex:0 0 auto;}
+.mp-bb-extras{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+.mp-bb-btn{background:none;border:none;color:var(--text-2);cursor:pointer;font-size:16px;padding:4px;flex:0 0 auto;}
+.mp-bb-btn:hover{color:var(--white);}
+.mp-bb-play{background:var(--gold-gradient);color:#0a0a0a;border:none;width:36px;height:36px;border-radius:50%;
+  cursor:pointer;font-size:14px;box-shadow:0 0 14px rgba(226,144,35,.4);flex:0 0 auto;}
+.mp-bb-info{flex:0 1 180px;min-width:0;}
+.mp-bb-title{font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-bb-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.mp-bb-seekwrap{flex:1;min-width:0;display:flex;align-items:center;gap:8px;}
+.mp-bb-time{font-size:9.5px;color:var(--muted);flex:0 0 auto;min-width:26px;}
+.mp-bb-vol-icon{font-size:11px;color:var(--muted);flex:0 0 auto;}
+.mp-bb-heart{font-size:15px;color:var(--muted);cursor:pointer;flex:0 0 auto;transition:color .2s,transform .15s;}
+.mp-bb-heart:hover{transform:scale(1.15);}
+.mp-bb-heart.fav{color:var(--gold);}
+.mp-bb-seek,.mp-bb-vol{-webkit-appearance:none;appearance:none;height:4px;border-radius:999px;
+  background:var(--surface);outline:none;cursor:pointer;accent-color:var(--gold);}
+.mp-bb-seek{flex:1;min-width:60px;}
+.mp-bb-vol{width:80px;flex:0 0 auto;}
+.mp-bb-seek::-webkit-slider-runnable-track,.mp-bb-vol::-webkit-slider-runnable-track{height:4px;border-radius:999px;background:var(--surface);}
+.mp-bb-seek::-webkit-slider-thumb,.mp-bb-vol::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;background:var(--gold);margin-top:-4px;box-shadow:0 0 6px rgba(226,144,35,.6);}
+.mp-bb-seek::-moz-range-track,.mp-bb-vol::-moz-range-track{height:4px;border-radius:999px;background:var(--surface);}
+.mp-bb-seek::-moz-range-thumb,.mp-bb-vol::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--gold);border:none;box-shadow:0 0 6px rgba(226,144,35,.6);}
+@media(max-width:600px){
+  .mp-header-row{padding:18px 16px 14px;}
+  .mp-tabs{padding:12px 16px;}
+  .mp-list-header{padding:10px 16px 0;}
+  .mp-list-panel{padding:8px 16px 14px;min-height:300px;}
+  .mp-player{padding:12px 16px 16px;gap:8px;}
+  .mp-bb-vol{display:none;}
+  .mp-bb-vol-icon{display:none;}
+  .mp-bb-sub{display:none;}
+  .mp-logo-sub{display:none;}
+}
+
+/* ── Tarjeta "Racha" — fueguito global histórico (izquierda) + barra
+   principal de progreso del bloque activo (mecánica 2x2) y avance del
+   nivel (derecha) (espejo de portal.html). La barra semanal por días fue
+   retirada. ── */
+.racha-card{display:flex;align-items:stretch;gap:20px;padding:20px 22px;}
+.racha-fuego-box{flex:0 0 132px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;background:var(--surface);border:1px solid var(--card-border);border-radius:var(--r-lg);
+  padding:18px 10px;text-align:center;}
+.racha-fuego-icon{font-size:38px;line-height:1;
+  filter:drop-shadow(0 0 14px rgba(226,144,35,.55)) drop-shadow(0 0 28px rgba(226,144,35,.3));}
+.racha-fuego-num{font-size:19px;font-weight:800;color:var(--white);white-space:nowrap;}
+.racha-fuego-label{font-size:10.5px;color:var(--muted);line-height:1.3;}
+.racha-desbloqueo{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:10px;}
+.racha-progreso-texto{font-size:13.5px;color:var(--text-2);}
+.racha-progreso-texto strong{font-size:22px;color:var(--white);margin-right:4px;}
+.racha-progreso-destacado{color:var(--white);font-weight:700;}
+.racha-bar-track{height:11px;border-radius:999px;background:var(--surface);border:1px solid var(--card-border);overflow:hidden;}
+.racha-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#FFD573,var(--gold));
+  box-shadow:0 0 12px rgba(226,144,35,.55);transition:width .4s ease;}
+.racha-nivel-texto{font-size:11px;color:var(--muted);}
+/* Fila de redondeles: cada uno representa un par de vídeos de clase
+   desbloqueados dentro del nivel activo (mecánica 2x2). Reemplaza a la
+   barra de progreso dentro de la tarjeta Racha. Agrupados por disciplina
+   con una rayita divisoria + nombre debajo de cada grupo. */
+.racha-videos-grupos{display:flex;align-items:stretch;gap:16px;flex-wrap:wrap;}
+.racha-videos-grupo{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.racha-videos-grupo-label{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.2px;color:var(--muted);}
+.racha-videos-divisor{width:1px;align-self:stretch;background:var(--card-border);margin:0 2px;min-height:50px;}
+.racha-videos-fila{display:flex;flex-wrap:wrap;gap:12px;}
+.racha-video-circulo{flex:0 0 auto;width:50px;height:50px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--card-border);
+  color:var(--muted);font-size:20px;font-weight:800;transition:background .3s ease,box-shadow .3s ease,
+  color .3s ease,border-color .3s ease,transform .3s ease;}
+.racha-video-circulo.encendido{background:radial-gradient(circle at 50% 32%,#FFD573,var(--gold));
+  border-color:var(--gold);color:#1a1204;transform:scale(1.06);
+  box-shadow:0 0 10px rgba(226,144,35,.6),0 0 20px rgba(226,144,35,.32);}
+@media(max-width:600px){.racha-video-circulo{width:38px;height:38px;font-size:16px;}.racha-videos-divisor{min-height:38px;}}
+@media(max-width:600px){
+  .racha-card{flex-direction:column;}
+  .racha-fuego-box{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:14px;padding:14px 16px;}
+  .racha-fuego-icon{font-size:28px;}
+}
+
+/* ── Tarjeta "Calendario" — grid mensual (izquierda) + leyenda de categorías
+   (derecha). Clases=dorado (privado), Talleres=fucsia, Eventos=cian (ambos
+   públicos). El día de hoy va con el círculo relleno, no solo el borde.
+   (espejo de portal.html) ── */
+.mescal-card{display:flex;flex-direction:column;gap:10px;max-width:440px;padding:16px 18px;}
+.cal-main{flex:1;min-width:0;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.cal-mes-selector{position:relative;}
+.cal-mes-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--card-border);
+  color:var(--white);padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;text-transform:capitalize;transition:all .15s;}
+.cal-mes-pill:hover{border-color:var(--border-hi);}
+.cal-mes-chevron{font-size:9px;color:var(--muted);}
+.cal-mes-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:20;max-height:200px;overflow-y:auto;
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--r-sm);padding:5px;
+  box-shadow:0 12px 32px rgba(0,0,0,.6);min-width:140px;}
+.cal-mes-opcion{padding:6px 10px;border-radius:6px;font-size:11px;color:var(--text-2);cursor:pointer;text-transform:capitalize;}
+.cal-mes-opcion:hover{background:var(--surface);color:var(--white);}
+.cal-mes-opcion.activa{background:rgba(226,144,35,.12);color:var(--gold);font-weight:700;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px 4px;}
+.cal-dow{text-align:center;font-size:8px;color:var(--white);font-weight:700;padding-bottom:3px;}
+.cal-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:30px;}
+.cal-cell-vacia{visibility:hidden;}
+.cal-day{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;color:var(--text-2);border:1px solid transparent;background:transparent;
+  transition:all .15s;}
+.cal-day-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px rgba(226,144,35,.35);}
+.cal-day-magenta{border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 5px rgba(224,36,195,.35);}
+.cal-day-cyan{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 5px rgba(16,194,196,.35);}
+.cal-day-hoy{color:#0a0a0a;border-color:transparent;font-weight:800;}
+.cal-day-hoy-gold{background:var(--gold);box-shadow:0 0 8px rgba(226,144,35,.55);}
+.cal-day-hoy-magenta{background:var(--magenta);box-shadow:0 0 8px rgba(224,36,195,.55);}
+.cal-day-hoy-cyan{background:var(--cyan);box-shadow:0 0 8px rgba(16,194,196,.55);}
+.cal-day-dots{display:flex;gap:2px;height:3px;}
+.cal-dot{width:3px;height:3px;border-radius:50%;}
+.cal-dot-gold{background:var(--gold);}
+.cal-dot-magenta{background:var(--magenta);}
+.cal-dot-cyan{background:var(--cyan);}
+.cal-divider{width:100%;height:1px;align-self:stretch;background:var(--card-border);flex:0 0 auto;margin:2px 0;}
+.cal-legend{flex:0 0 auto;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 14px;justify-content:center;padding-top:0;}
+.cal-legend-item{display:flex;align-items:center;gap:5px;}
+.cal-legend-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;border:1px solid;flex:0 0 auto;}
+.cal-legend-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px rgba(226,144,35,.3);}
+.cal-legend-magenta{border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 5px rgba(224,36,195,.3);}
+.cal-legend-cyan{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 5px rgba(16,194,196,.3);}
+.cal-legend-label{font-size:11.5px;font-weight:700;padding-bottom:1px;border-bottom:1.5px solid currentColor;display:inline-block;}
+.cal-legend-label-gold{color:var(--gold);}
+.cal-legend-label-magenta{color:var(--magenta);}
+.cal-legend-label-cyan{color:var(--cyan);}
+@media(max-width:640px){
+  .mescal-card{max-width:none;}
+}
+
+/* ── "Invita y gana" — tarjeta dorada premium, arriba de todo el dashboard
+   (Ver como alumno), espejo de portal.html. ── */
+.ref-hero-card{
+  border-color:var(--gold);
+  background:linear-gradient(135deg,rgba(226,144,35,.12) 0%,rgba(138,112,0,.05) 55%,transparent 100%);
+  box-shadow:0 0 0 1px rgba(226,144,35,.15),0 0 28px rgba(226,144,35,.16);
+}
+.ref-hero-card:hover{border-color:var(--gold);transform:none;}
+.ref-hero-title{
+  font-family:'Sora',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.2px;
+  color:var(--gold-2);text-shadow:0 0 14px rgba(226,144,35,.35);margin-bottom:6px;
+}
+.ref-hero-sub{color:var(--text-2);font-size:13px;line-height:1.6;margin:0 0 16px;}
+.ref-discount-box{background:rgba(255,255,255,.04);border:1px solid rgba(226,144,35,.12);
+  border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.ref-discount-box.ref-discount-active{background:radial-gradient(circle at 50% 15%,rgba(226,144,35,.22),rgba(226,144,35,.04) 70%);
+  border-color:var(--gold);box-shadow:0 0 0 1px rgba(226,144,35,.25),0 0 24px rgba(226,144,35,.35);
+  padding:10px;}
+.ref-discount-img{width:100%;max-width:170px;height:auto;display:block;
+  filter:drop-shadow(0 0 14px rgba(226,144,35,.4));}
+.ref-discount-num{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;color:var(--muted);}
+.ref-discount-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.ref-discount-label-active{color:var(--gold-2);font-weight:700;margin-top:6px;}
+@media(max-width:600px){
+  .ref-hero-title{font-size:16px;}
+  .ref-discount-img{max-width:120px;}
+}
+
+/* ── Scroll reveal: animación ligera "slide-in" al hacer scroll (ver
+   initScrollReveal en app.js), espejo de portal.html para que "Ver como
+   alumno" tenga la misma interacción. ── */
+.reveal-left:not(.in-view),
+.reveal-right:not(.in-view),
+.reveal-down:not(.in-view),
+.reveal-up:not(.in-view){
+  opacity:0 !important;
+  visibility:hidden;
+}
+.reveal-left:not(.in-view){transform:translateX(calc(-1 * var(--rv-dist,100px)));}
+.reveal-right:not(.in-view){transform:translateX(var(--rv-dist,100px));}
+.reveal-down:not(.in-view){transform:translateY(calc(-1 * var(--rv-dist,60px)));}
+.reveal-up:not(.in-view){transform:translateY(var(--rv-dist,30px));}
+.reveal-left,.reveal-right,.reveal-down,.reveal-up{
+  transition:transform .7s cubic-bezier(.16,1,.3,1),opacity .7s ease-out;
+  will-change:transform,opacity;
+}
+.reveal-left.in-view,.reveal-right.in-view,.reveal-down.in-view,.reveal-up.in-view{
+  opacity:1;
+  visibility:visible;
+  will-change:auto;
+}
+@media(prefers-reduced-motion:reduce){
+  .reveal-left,.reveal-right,.reveal-down,.reveal-up{transition:none;}
+  .reveal-left:not(.in-view),.reveal-right:not(.in-view),
+  .reveal-down:not(.in-view),.reveal-up:not(.in-view){
+    opacity:1 !important;visibility:visible;transform:none;
+  }
+}
+
+/* ── Los 5 bloques superiores de Inicio (perfil, banner de referidos,
+   calendario, racha, Mis Vídeos) usaban antes una secuencia de entrada
+   fija por @keyframes (animation-fill-mode:both) que solo corría una vez
+   al montar la vista y nunca se repetía al volver a subir con el scroll.
+   Ahora usan las mismas clases .reveal-left/.reveal-right/.reveal-down/
+   .reveal-up (con --rv-dist inline por bloque para conservar su distancia
+   original) del motor scroll-reveal de más arriba — ver initScrollReveal
+   en app.js — así se re-animan al salir y volver a entrar en pantalla. ── */
+
+/* ── Fila que junta Calendario + Racha en escritorio, para que la Racha
+   ocupe el espacio libre a la derecha del calendario (ya cuadrado/chico).
+   En móvil se apilan una debajo de la otra, como antes. ── */
+.racha-cal-row{display:flex;gap:20px;align-items:stretch;margin-bottom:28px;}
+.racha-cal-row .mescal-card{flex:0 0 auto;margin-bottom:0;}
+.racha-cal-row .racha-card{flex:1;min-width:280px;margin-bottom:0;}
+@media(max-width:900px){
+  .racha-cal-row{flex-direction:column;}
+}
+/* ── Solo escritorio: el Calendario se alarga hacia la derecha para quedar
+   cuadrado (la Racha se encoge en consecuencia), y se agranda el texto de
+   la tarjeta Racha (espejo de portal.html) ── */
+@media(min-width:901px){
+  .racha-cal-row .mescal-card{flex:0 0 320px;width:320px;}
+
+  .racha-fuego-icon{font-size:46px;}
+  .racha-fuego-num{font-size:23px;}
+  .racha-fuego-label{font-size:12px;}
+  .racha-progreso-texto{font-size:15px;}
+  .racha-progreso-texto strong{font-size:25px;}
+  .racha-nivel-texto{font-size:12.5px;}
+}
+
+/* ── Música + Eventos en paralelo (espejo de portal.html) ── */
+.portal-paralelo{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:32px;}
+.portal-paralelo>.card{margin-bottom:0;display:flex;flex-direction:column;min-height:0;}
+@media(max-width:900px){
+  .portal-paralelo{grid-template-columns:1fr;}
+}
+
+/* ── "Próximos Eventos y Talleres" — carrusel tipo "coverflow"
+   (espejo de portal.html) ── */
+.ev-nav-btn{background:var(--surface);border:1px solid var(--card-border);color:var(--text-2);
+  width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit;}
+.ev-nav-btn:hover{background:var(--surface-2);color:var(--white);border-color:var(--border-hi);}
+.ev-nav-btn:disabled{opacity:.35;cursor:default;}
+
+.ev-coverflow{position:relative;width:100%;height:750px;overflow:hidden;
+  touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+.ev-coverflow:active{cursor:grabbing;}
+/* Ancho proporcional al contenedor (no fijo en px): así se ve igual de
+   grande tanto en un panel angosto (vista previa) como en una pantalla
+   ancha (servidor real) — antes, un ancho fijo se veía bien en uno y
+   chico en el otro. maEvActualizarCardStep() en el JS lee el ancho ya
+   renderizado para que la separación entre tarjetas también escale, y
+   ajusta el alto real de #maEvCoverflow (el 750px de arriba es solo un
+   valor de respaldo para el primer pintado, antes de medir). */
+.ev-card{position:absolute;top:50%;left:50%;width:clamp(220px, 62%, 520px);cursor:pointer;
+  border-radius:var(--r-lg);overflow:hidden;background:var(--surface);
+  border:1px solid var(--card-border);will-change:transform,opacity;
+  touch-action:none;-webkit-user-drag:none;}
+.ev-card:hover{border-color:var(--border-hi);}
+.ev-card-media{position:relative;width:100%;aspect-ratio:3/4;background:#000;overflow:hidden;pointer-events:none;}
+/* Tarjetas de Cursos (Reel) con portada vertical 2:3 — solo .cr-card,
+   sin afectar el carrusel de Eventos que sigue en 3:4. */
+.cr-card .ev-card-media{aspect-ratio:2/3;}
+.ev-card-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  pointer-events:none;}
+.ev-card-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.22);}
+.ev-card-play::before{content:'▶';width:38px;height:38px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1.5px solid rgba(255,255,255,.5);color:#fff;
+  font-size:13px;display:flex;align-items:center;justify-content:center;
+  padding-left:3px;backdrop-filter:blur(3px);}
+.ev-card-info{padding:10px 12px 12px;pointer-events:none;}
+.ev-card-titulo{font-size:12.5px;font-weight:700;color:var(--white);margin-bottom:3px;
+  line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ev-card-fecha{font-size:10.5px;color:var(--muted);}
+
+/* ── Lightbox de Eventos: vista ampliada a tamaño completo ── */
+.ev-lightbox-overlay{position:fixed;inset:0;z-index:1200;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  animation:fadeOverlay .2s ease both;}
+.ev-lightbox-card{position:relative;width:100%;max-width:480px;max-height:92vh;
+  display:flex;flex-direction:column;background:var(--card-bg,#161616);
+  border:1px solid var(--card-border);border-radius:var(--r-xl);overflow:hidden;
+  animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.ev-lightbox-media{position:relative;width:100%;aspect-ratio:4/5;background:#000;flex:0 0 auto;}
+.ev-lightbox-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
+.ev-lightbox-media iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.ev-lightbox-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:18px;
+  line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+.ev-lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;
+  border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+.ev-lightbox-nav.prev{left:10px;}
+.ev-lightbox-nav.next{right:10px;}
+.ev-lightbox-nav:hover{background:rgba(0,0,0,.8);border-color:var(--border-hi);}
+.ev-lightbox-info{padding:16px 20px 20px;overflow-y:auto;}
+.ev-lightbox-titulo{font-family:'Sora',sans-serif;font-size:16.5px;font-weight:700;color:#fff;margin-bottom:5px;}
+.ev-lightbox-fecha{font-size:12px;color:var(--gold-2);margin-bottom:8px;}
+.ev-lightbox-desc{font-size:12.5px;color:var(--text-2);line-height:1.6;}
+/* Móvil: ancho fijo confirmado — no tocar (ver historial de cambios). */
+@media(max-width:480px){ .ev-card{width:190px;} .ev-coverflow{height:360px;} }
+
+/* ── Cursos Exclusivos (espejo "Ver como alumno") ── */
+.cx-page{background:#050505;min-height:100%;padding:28px 20px 60px;}
+.cx-hero{display:flex;align-items:center;justify-content:space-between;gap:24px;
+  margin-bottom:22px;padding-top:6px;}
+.cx-hero-text{text-align:left;}
+.cx-titulo{font-family:'Sora',sans-serif;font-size:30px;font-weight:800;color:#fff;letter-spacing:-.3px;}
+.cx-subtitulo{font-style:italic;color:#D4A359;font-size:14.5px;margin-top:6px;}
+.cx-hero-deco{flex:0 0 auto;width:720px;height:283px;border-radius:16px;overflow:hidden;
+  background:#0c0c0c;}
+.cx-hero-deco img{display:block;width:100%;height:100%;object-fit:cover;}
+.cx-pills{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-bottom:26px;}
+.cx-pill{padding:9px 20px;border-radius:999px;border:1px solid rgba(212,163,89,.4);
+  background:transparent;color:#c9c9c9;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:all .18s;font-family:inherit;}
+.cx-pill:hover{border-color:#D4A359;color:#D4A359;}
+.cx-pill.active{background:rgba(212,163,89,.14);border-color:#D4A359;color:#D4A359;
+  box-shadow:0 0 0 3px rgba(212,163,89,.14),0 0 14px rgba(212,163,89,.35);}
+.cx-acc{max-width:1080px;margin:0 auto 16px;border:1px solid rgba(212,163,89,.3);
+  border-radius:16px;overflow:hidden;background:#0a0a0a;}
+.cx-acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;
+  cursor:pointer;user-select:none;border-bottom:1px solid transparent;}
+.cx-acc.open .cx-acc-head{border-bottom-color:rgba(212,163,89,.25);}
+.cx-acc-head-title{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff;
+  display:flex;align-items:center;gap:10px;letter-spacing:.5px;text-transform:uppercase;}
+.cx-acc-count{font-size:11px;color:#707070;font-weight:500;text-transform:none;letter-spacing:0;}
+.cx-acc-chevron{color:#D4A359;transition:transform .25s;font-size:13px;}
+.cx-acc.open .cx-acc-chevron{transform:rotate(180deg);}
+.cx-acc-body-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease;}
+.cx-acc.open .cx-acc-body-wrap{grid-template-rows:1fr;}
+.cx-acc-body{overflow:hidden;min-height:0;}
+.cx-sub-titulo{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:#707070;
+  margin:14px 22px 8px;font-weight:700;}
+.cx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;
+  padding:2px 22px 20px;}
+.cx-card{position:relative;border-radius:12px;overflow:hidden;
+  border:1px solid rgba(212,163,89,.45);background:#111;cursor:pointer;aspect-ratio:2/3;
+  transition:transform .18s,box-shadow .18s;}
+.cx-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(212,163,89,.2);}
+.cx-card-media{position:absolute;inset:0;background:#000;overflow:hidden;}
+.cx-card-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  transition:transform .35s ease;}
+.cx-card:hover .cx-card-media img{transform:scale(1.12);}
+.cx-card-play{position:absolute;left:9px;bottom:9px;width:26px;height:26px;border-radius:50%;
+  background:rgba(212,163,89,.95);color:#0a0a0a;display:flex;align-items:center;
+  justify-content:center;font-size:10px;padding-left:1.5px;z-index:2;}
+.cx-card-info{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 9px;
+  background:linear-gradient(0deg,rgba(0,0,0,.88) 20%,rgba(0,0,0,.55) 55%,transparent 100%);}
+.cx-card-titulo{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px;padding-left:32px;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.cx-card-meta{font-size:9.5px;color:#c9c9c9;padding-left:32px;}
+.cx-card.locked{padding:0;background:#0a0a0a;}
+.cx-card.locked:hover{transform:none;box-shadow:none;}
+.cx-card.locked .cx-card-titulo,.cx-card.locked .cx-card-meta{padding-left:10px;}
+.cx-lock-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:16px 20px;border-radius:16px;background:rgba(0,0,0,.55);border:1px solid #D4A359;
+  pointer-events:none;text-align:center;}
+.cx-lock-badge-ico{font-size:32px;color:#D4A359;line-height:1;}
+.cx-lock-badge-txt{font-size:12px;font-weight:700;color:#D4A359;letter-spacing:.4px;text-transform:uppercase;}
+.cx-empty{text-align:center;color:#707070;font-size:12.5px;padding:40px 20px;}
+.curso-detalle-overlay{position:fixed;inset:0;z-index:960;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:fadeOverlay .2s ease both;}
+.curso-detalle-card{position:relative;width:100%;max-width:480px;max-height:82vh;overflow-y:auto;
+  background:#0c0c0c;border:1px solid rgba(212,163,89,.3);border-radius:20px;
+  padding:26px 22px 22px;animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.curso-detalle-close{position:absolute;top:10px;right:10px;width:30px;height:30px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.4);
+  color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;}
+.curso-detalle-media{position:relative;width:100%;border-radius:14px;overflow:hidden;
+  background:#000;margin-bottom:16px;display:flex;align-items:center;justify-content:center;
+  max-height:55vh;}
+.curso-detalle-media img{display:block;width:100%;height:auto;max-height:55vh;object-fit:contain;}
+.curso-detalle-titulo{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:#fff;
+  margin:0 0 4px;padding-right:26px;}
+.curso-detalle-meta{font-size:11.5px;color:#D4A359;margin:0 0 16px;}
+.curso-detalle-body{transition:opacity .35s ease,transform .35s ease;}
+.curso-detalle-body.cxd-body-enter{opacity:0;transform:translateY(10px);}
+.curso-detalle-body.cxd-body-enter.cxd-body-enter-active{opacity:1;transform:translateY(0);}
+.curso-detalle-locked{display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:20px 10px 6px;text-align:center;}
+.curso-detalle-locked-ico{width:48px;height:48px;border-radius:50%;background:rgba(212,163,89,.14);
+  border:1px solid #D4A359;display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:#D4A359;}
+.curso-detalle-locked-txt{font-size:12.5px;color:#c9c9c9;line-height:1.6;}
+#maCxPlayerWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;
+  border-radius:12px;overflow:hidden;margin-bottom:14px;display:none;}
+#maCxPlayerWrap iframe,#maCxPlayerWrap video{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.curso-detalle-video-row{display:flex;align-items:center;gap:12px;padding:11px 12px;
+  border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);
+  cursor:pointer;margin-bottom:8px;transition:all .18s;}
+.curso-detalle-video-row:hover,.curso-detalle-video-row.playing{border-color:#D4A359;
+  background:rgba(212,163,89,.07);}
+.curso-detalle-video-num{width:24px;height:24px;border-radius:50%;border:1px solid #D4A359;
+  color:#D4A359;display:flex;align-items:center;justify-content:center;font-size:10.5px;
+  font-weight:700;flex:0 0 auto;}
+.curso-detalle-video-titulo{font-size:12.5px;color:#e6e6e6;font-weight:500;}
+
+/* ── Tarjeta pequeña con efecto vidrio/blur (paneles flotantes) ── */
+.glass-card{background:rgba(255,255,255,.045);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.09);border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.35);}
+
+/* ── Efecto vidrio/blur para el panel del reproductor de vídeo (modo alumno) ── */
+#maAulaWrap{background:rgba(20,20,20,.5)!important;backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border:1px solid rgba(255,255,255,.08);}
+
+/* ── Tarjetas mini de clases (vista previa "modo alumno") — espejo de portal.html ── */
+.clases-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;}
+.clase-mini{position:relative;width:72px;padding:8px 4px 7px;border-radius:10px;
+  background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  transition:all .2s;text-align:center;}
+.clase-mini:hover{border-color:var(--gold);transform:translateY(-2px);}
+.clase-mini.active{border-color:var(--gold);background:rgba(226,144,35,.06);}
+.clase-mini-play{width:20px;height:20px;border-radius:50%;background:var(--bg);
+  border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;
+  font-size:8.5px;color:var(--muted);transition:all .2s;flex:0 0 auto;}
+.clase-mini.active .clase-mini-play{background:var(--gold);border-color:transparent;color:#0a0a0a;}
+.clase-mini-label{font-size:9.5px;font-weight:700;color:var(--white);white-space:nowrap;}
+
+/* ── Barra de estado interactiva bajo el vídeo simulado ── */
+.video-status-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:10px 16px;margin:0;flex-wrap:wrap;
+  color:var(--text-2);font-size:13px;font-weight:600;text-align:left;
+  background:transparent;border-top:2px solid transparent;
+  transition:background .2s,border-color .2s;}
+.video-status-bar:hover{background:rgba(226,144,35,.05);border-top-color:var(--gold);}
+.video-status-bar .clase-actual{color:var(--gold);font-weight:700;}
+
+/* ══ TOASTS ══ */
+.toast{display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:var(--r);
+  font-size:13px;font-weight:500;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:var(--shadow);border:1px solid;
+  animation:toastIn .3s cubic-bezier(.34,1.36,.64,1);pointer-events:all;min-width:220px;max-width:340px;}
+.toast.ok  {background:rgba(62,200,122,.14);border-color:rgba(62,200,122,.28);color:var(--ok);}
+.toast.warn{background:rgba(224,92,92,.14);border-color:rgba(224,92,92,.28);color:var(--warn);}
+.toast.info{background:rgba(91,141,238,.14);border-color:rgba(91,141,238,.28);color:var(--accent-2);}
+
+/* ══ FLASH OVERLAY ══ */
+#flashOverlay{display:none;position:fixed;inset:0;pointer-events:none;z-index:200;}
+#flashOverlay.active{display:block;animation:flash-success .65s ease forwards;}
+
+/* ══ MODO ALUMNO — nav pills dentro del panel ══ */
+.ma-nav-btn{
+  background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:9px 18px;border-radius:30px 30px 0 0;cursor:pointer;
+  font-size:13px;font-weight:500;font-family:'Inter',sans-serif;
+  transition:all .2s cubic-bezier(.4,0,.2,1);white-space:nowrap;position:relative;
+}
+.ma-nav-btn::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;
+  background:transparent;transition:all .22s;}
+.ma-nav-btn:hover{color:var(--text-2);background:rgba(255,255,255,.05);}
+.ma-nav-btn.active{color:var(--gold-2);font-weight:600;background:rgba(226,144,35,.08);}
+.ma-nav-btn.active::after{background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+/* Reutilizamos estilos del portal para disc-tabs y nivel-pills dentro del modo alumno */
+#maDiscTabs{display:flex;gap:4px;padding:12px 24px 0;
+  background:rgba(10,10,10,.7);border-bottom:1px solid rgba(226,144,35,.14);flex-wrap:wrap;}
+#maDiscTabs .disc-tab{background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:8px 18px;border-radius:var(--r-sm) var(--r-sm) 0 0;cursor:pointer;font-size:13px;
+  font-weight:500;transition:all .22s;font-family:'Inter',sans-serif;position:relative;}
+#maDiscTabs .disc-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;
+  background:transparent;transition:all .22s;}
+#maDiscTabs .disc-tab.active{color:var(--gold-2);font-weight:600;}
+#maDiscTabs .disc-tab.active::after{background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+#maNivelPills{display:flex;gap:8px;padding:12px 24px;
+  background:rgba(10,10,10,.6);border-bottom:1px solid rgba(226,144,35,.14);flex-wrap:wrap;}
+#maNivelPills .nivel-pill{background:rgba(255,255,255,.04);border:1px solid rgba(226,144,35,.14);
+  color:var(--muted);padding:6px 16px;border-radius:30px;cursor:pointer;
+  font-size:12.5px;font-weight:500;transition:all .22s;}
+#maNivelPills .nivel-pill:hover:not(.locked){border-color:var(--gold);color:var(--gold-2);
+  background:rgba(226,144,35,.1);}
+#maNivelPills .nivel-pill.active{background:var(--card-bg);
+  border-color:rgba(226,144,35,.42);color:var(--text);font-weight:600;
+  box-shadow:none;}
+#maNivelPills .nivel-pill.locked{opacity:.3;cursor:not-allowed;}
+
+/* ── Modal explicativo Rachas.png de la mecánica 2x2 (espejo de
+   portal.html), usado también en la simulación de "Ver como alumno" ── */
+.desbloqueo-modal-overlay{position:fixed;inset:0;z-index:300;display:flex;
+  align-items:flex-start;justify-content:center;padding:48px 24px 24px;overflow-y:auto;
+  background:rgba(3,3,3,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  animation:fadeOverlay .25s ease both;}
+.desbloqueo-modal-card{position:relative;width:100%;max-width:560px;
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--r-xl);
+  padding:20px 20px 22px;box-shadow:0 24px 64px rgba(0,0,0,.65);
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.desbloqueo-modal-close{position:absolute;top:12px;right:12px;z-index:2;
+  width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(0,0,0,.5);color:var(--white);font-size:15px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--t);}
+.desbloqueo-modal-close:hover{background:rgba(255,255,255,.12);border-color:var(--border-hi);}
+.desbloqueo-modal-img{width:100%;border-radius:var(--r-lg);display:block;cursor:pointer;}
+.desbloqueo-modal-actions{width:100%;}
+.desbloqueo-modal-actions .btn{width:100%;}
+@media(max-width:480px){ .desbloqueo-modal-card{padding:16px 16px 18px;max-width:100%;} }
+</style>
+<style>
+/* ══ LANDING DE INSTALACIÓN ══
+   Por defecto (navegador normal, sin instalar) mostramos esto y ESCONDEMOS
+   el login — instalar la app es el único objetivo de "/" en un navegador.
+   Solo cuando <html> tiene la clase "es-standalone" (agregada de forma
+   síncrona en el <head>, ver más arriba) mostramos el login de verdad. */
+#instalarOverlay{display:flex;position:fixed;inset:0;z-index:110;
+  flex-direction:column;align-items:center;justify-content:center;
+  background:#000;padding:36px 26px;text-align:center;overflow-y:auto;gap:0;}
+html.es-standalone #instalarOverlay{display:none;}
+.instalar-logo{width:132px;height:auto;margin-bottom:26px;
+  filter:drop-shadow(0 0 30px rgba(226,144,35,.25));}
+.instalar-titulo{font-family:'Sora',sans-serif;font-size:21px;font-weight:800;
+  color:#fff;letter-spacing:-.2px;margin-bottom:8px;}
+.instalar-sub{font-size:13px;color:#a0a0a0;max-width:320px;line-height:1.65;margin-bottom:26px;}
+.instalar-btn-nativo{display:none;align-items:center;gap:8px;background:linear-gradient(135deg,#FFD573,#E29023);
+  color:#1a1204;border:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:14px;
+  font-family:'Inter',sans-serif;cursor:pointer;margin-bottom:22px;
+  box-shadow:0 8px 24px rgba(226,144,35,.3);}
+.instalar-pasos{display:none;width:100%;max-width:340px;text-align:left;
+  background:rgba(255,255,255,.03);border:1px solid rgba(226,144,35,.18);
+  border-radius:16px;padding:18px 20px;margin-bottom:8px;}
+.instalar-paso{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:#d8d8d8;line-height:1.5;}
+.instalar-paso+.instalar-paso{margin-top:14px;}
+.instalar-paso-num{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
+  background:rgba(226,144,35,.14);border:1px solid rgba(226,144,35,.4);color:#FFD573;
+  font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.instalar-paso strong{color:#fff;font-weight:600;}
+.instalar-nota{margin-top:22px;font-size:11px;color:#707070;max-width:300px;}
+.instalar-tabs{display:flex;gap:8px;margin-bottom:18px;}
+.instalar-tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  color:#a0a0a0;padding:7px 16px;border-radius:30px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;}
+.instalar-tab.activa{background:rgba(226,144,35,.14);border-color:#E29023;color:#FFD573;}
+
+/* ══ LOGIN OVERLAY ══
+   Oculto por defecto: en un navegador normal ("/") lo que se ve es la
+   landing de instalación de arriba. Solo aparece cuando <html> tiene la
+   clase "es-standalone" — es decir, cuando la app corre instalada — y ahí
+   sí es display:flex por defecto para que, incluso antes de que iniciar()
+   termine de comprobar la sesión en app.js, el estado seguro sea mostrar
+   el login, nunca una pantalla en blanco ni el panel. iniciar()/
+   ocultarLogin() lo ocultan solo tras confirmar sesión válida vía
+   /api/me. */
+#loginOverlay{display:none;position:fixed;inset:0;z-index:100;
+  align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(ellipse 120% 100% at 50% -20%,#1a1200 0%,#0A0A0A 65%);}
+html.es-standalone #loginOverlay{display:flex;}
+.login-orb{position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(91,141,238,.08) 0%,transparent 70%);
+  animation:shimmer 4s ease-in-out infinite;}
+#loginForm{
+  position:relative;background:rgba(12,12,24,0.92);
+  backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border:1px solid var(--border-2);border-radius:var(--r-xl);
+  padding:44px 36px;width:100%;max-width:400px;
+  box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07);
+  text-align:center;animation:scaleIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+.login-logo{display:inline-flex;align-items:center;justify-content:center;
+  width:72px;height:72px;border-radius:22px;margin-bottom:22px;
+  background:linear-gradient(135deg,#2a1d00,#0a0800);
+  border:1px solid var(--border-glow);
+  box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.login-logo span{font-family:'Sora',sans-serif;font-size:34px;font-weight:800;
+  background:linear-gradient(135deg,#85adff,#5b8dee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.login-title{font-family:'Sora',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.5px;}
+.login-sub{font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin:6px 0 28px;}
+.login-label{font-size:11.5px;color:var(--text-2);font-weight:500;display:block;
+  text-align:left;margin-bottom:6px;}
+.login-label+.login-label{margin-top:14px;}
+.login-input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border-2);
+  color:var(--text);padding:13px 16px;border-radius:var(--r-sm);font-size:14px;
+  font-family:inherit;outline:none;transition:all .2s;margin-bottom:0;}
+.login-input:focus{border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--accent-soft),0 0 14px var(--accent-glow);}
+.pass-toggle-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;
+  display:flex;align-items:center;transition:color .2s;}
+.pass-toggle-btn:hover{color:var(--gold);}
+#logError{color:var(--warn);font-size:13px;margin-top:14px;min-height:18px;}
+.login-btn{
+  width:100%;margin-top:20px;padding:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-deep));
+  color:#fff;border:none;border-radius:var(--r-sm);font-size:14.5px;font-weight:600;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:var(--t);
+  box-shadow:0 5px 18px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.15);}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.login-btn:active{transform:translateY(0);}
+
+/* ══ MODAL: RESTABLECER CONTRASEÑA DE OTRO ADMIN/PROFESOR ══
+   Para casos como "Gimena no puede entrar y no hay email/SMS para
+   recuperar" — cualquier admin ya logueado (Gaston) le pone una
+   contraseña nueva desde acá, sin tocar la base de datos a mano. */
+.resetpass-overlay{display:none;position:fixed;inset:0;z-index:200;
+  align-items:center;justify-content:center;padding:24px;
+  background:rgba(3,3,3,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  animation:fadeOverlay .2s ease both;}
+.resetpass-overlay.open{display:flex;}
+.resetpass-card{position:relative;width:100%;max-width:380px;
+  background:rgba(12,12,24,0.97);border:1px solid var(--border-2);border-radius:var(--r-xl);
+  padding:30px 26px;box-shadow:var(--shadow-lg);
+  animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.resetpass-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.4);color:#fff;font-size:15px;
+  line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.resetpass-title{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;margin-bottom:4px;}
+.resetpass-sub{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.resetpass-card .login-label{margin-top:14px;}
+.resetpass-card select.login-input{cursor:pointer;}
+#resetPassMsg{font-size:12.5px;margin-top:12px;min-height:16px;}
+#resetPassMsg.ok{color:#3ec87a;}
+#resetPassMsg.err{color:var(--warn);}
+</style>
+<body>
+
+<!-- LANDING DE INSTALACIÓN — ver comentario CSS de #instalarOverlay arriba.
+     Contenido y lógica (detección Android/iOS + beforeinstallprompt)
+     duplicados en registro-membresia.html con textos propios para el
+     alumno; si se cambia el diseño aquí, replicar el mismo cambio allá. -->
+<div id="instalarOverlay">
+  <img class="instalar-logo" src="/assets/malevo-logo-real.png" alt="Malevo Academia">
+  <div class="instalar-titulo">Instala Malevo en tu móvil</div>
+  <p class="instalar-sub">Añade la app a tu pantalla de inicio para entrar más rápido, a pantalla completa y sin la barra del navegador.</p>
+
+  <button type="button" class="instalar-btn-nativo" id="btnInstalarNativo" onclick="_instalarPWANativo()">⬇ Instalar ahora</button>
+
+  <div class="instalar-tabs" id="instalarTabs">
+    <button type="button" class="instalar-tab" data-plataforma="android" onclick="_instalarMostrarPasos('android')">Android</button>
+    <button type="button" class="instalar-tab" data-plataforma="ios" onclick="_instalarMostrarPasos('ios')">iPhone</button>
+  </div>
+
+  <div class="instalar-pasos" id="pasosAndroid">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca los <strong>tres puntos ⋮</strong> arriba a la derecha del navegador.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Elige <strong>Instalar aplicación</strong> (o <strong>Añadir a pantalla de inicio</strong>).</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Confirma tocando <strong>Instalar</strong>.</span></div>
+  </div>
+
+  <div class="instalar-pasos" id="pasosIOS">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en Safari.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Desliza y elige <strong>Añadir a pantalla de inicio</strong>.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Toca <strong>Añadir</strong> arriba a la derecha.</span></div>
+  </div>
+
+  <p class="instalar-nota">¿Ya la instalaste? Abre el ícono de Malevo desde tu pantalla de inicio para entrar.</p>
+</div>
+<script>
+(function(){
+  // ── Detecta Android vs iPhone para resaltar los pasos correctos ──
+  function _instalarDetectarPlataforma(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return esIOS ? 'ios' : 'android';
+  }
+  window._instalarMostrarPasos = function(plataforma){
+    var pasosAndroid = document.getElementById('pasosAndroid');
+    var pasosIOS = document.getElementById('pasosIOS');
+    if (pasosAndroid) pasosAndroid.style.display = (plataforma === 'android') ? 'block' : 'none';
+    if (pasosIOS) pasosIOS.style.display = (plataforma === 'ios') ? 'block' : 'none';
+    var tabs = document.querySelectorAll('#instalarTabs .instalar-tab');
+    tabs.forEach(function(t){ t.classList.toggle('activa', t.dataset.plataforma === plataforma); });
+  };
+  // ── Instalación nativa (Android/Chrome): Chrome dispara este evento
+  // cuando la PWA cumple todos los requisitos de instalabilidad. Si no
+  // dispara (iOS, Firefox, o ya instalada), el botón se queda oculto y
+  // solo se ven los pasos manuales — no es un error, es esperado. ──
+  var _deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    // Solo interceptamos el prompt nativo en dispositivos móviles, donde lo
+    // mostramos con nuestro propio botón dentro de la landing. En un
+    // ordenador la landing ya no se ve (ver el detector en el <head>), así
+    // que dejamos el evento sin tocar: el propio navegador (Chrome/Edge)
+    // ofrece instalar la app con su ícono nativo en la barra de
+    // direcciones, sin que haga falta construir nada para eso.
+    if (!window._malevoEsMovil()) return;
+    e.preventDefault();
+    _deferredPrompt = e;
+    var btn = document.getElementById('btnInstalarNativo');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+  window._instalarPWANativo = function(){
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.finally(function(){
+      _deferredPrompt = null;
+      var btn = document.getElementById('btnInstalarNativo');
+      if (btn) btn.style.display = 'none';
+    });
+  };
+  // ── Confirmación real de instalación ──
+  // 'appinstalled' lo dispara el navegador cuando la instalación TERMINÓ
+  // de verdad (tanto si se usó el botón nativo de arriba como si el
+  // usuario siguió los pasos manuales de ⋮/Compartir) — es la señal más
+  // fiable que existe, mejor que asumir éxito solo por haber tocado un
+  // botón. Reemplaza todo el contenido del landing por un mensaje claro
+  // en vez de dejarlo con los pasos ya inútiles en pantalla.
+  window.addEventListener('appinstalled', function(){
+    var overlay = document.getElementById('instalarOverlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div style="font-size:52px;line-height:1;margin-bottom:18px;">✅</div>' +
+      '<div class="instalar-titulo">¡Aplicación instalada con éxito!</div>' +
+      '<p class="instalar-sub">Ya puedes cerrar esta pestaña y abrir Malevo desde el ícono que se agregó a tu pantalla de inicio.</p>';
+    // Cerrar la pestaña solo funciona si el navegador lo permite (algunos
+    // lo bloquean si la pestaña no la abrió el propio script) — por eso el
+    // mensaje de arriba nunca depende de que esto funcione, es un extra.
+    setTimeout(function(){ try { window.close(); } catch(e){} }, 2500);
+  });
+  window._instalarMostrarPasos(_instalarDetectarPlataforma());
+})();
+</script>
+
+<!-- LOGIN -->
+<div id="loginOverlay">
+  <div class="login-orb" style="width:500px;height:500px;top:-100px;left:-100px;"></div>
+  <div class="login-orb" style="width:350px;height:350px;bottom:-80px;right:-60px;
+    animation-delay:1.5s;background:radial-gradient(circle,rgba(226,144,35,.05) 0%,transparent 70%);"></div>
+  <form id="loginForm" onsubmit="hacerLogin(event)">
+    <div class="login-logo"><span>M</span></div>
+    <div class="login-title">Malevo</div>
+    <!-- Badge modo administrador -->
+    <div style="display:inline-flex;align-items:center;gap:7px;font-size:10.5px;
+      color:var(--muted);padding:4px 13px;background:rgba(226,144,35,.06);
+      border:1px solid rgba(226,144,35,.18);border-radius:30px;margin-bottom:8px;letter-spacing:.5px;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+        background:var(--gold);box-shadow:0 0 6px rgba(226,144,35,.7);"></span>
+      MODO ADMINISTRADOR
+    </div>
+    <div class="login-sub" style="margin-top:0;">Acceso exclusivo para administradores</div>
+    <div style="text-align:left;">
+      <label class="login-label">Usuario</label>
+      <input class="login-input" type="text" id="logUser" autocomplete="username" autocapitalize="none" required>
+      <label class="login-label" style="margin-top:14px;">Contraseña</label>
+      <div style="position:relative;">
+        <input class="login-input" type="password" id="logPass" autocomplete="current-password" required style="padding-right:44px;">
+        <button type="button" class="pass-toggle-btn" onclick="togglePassVisibility('logPass', this)" aria-label="Mostrar contraseña" tabindex="-1">
+          <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="logError"></div>
+    <button class="login-btn" type="submit">Entrar como Administrador</button>
+    <div style="margin-top:16px;font-size:12px;color:var(--muted);">
+      ¿Eres alumno?
+      <a href="/portal.html" style="color:var(--gold-2);text-decoration:none;">Ir al portal de alumnos</a>
+      &nbsp;·&nbsp;
+      <a href="/login.html" style="color:var(--muted);text-decoration:none;font-size:11px;">← Cambiar modo</a>
+    </div>
+  </form>
+</div>
+
+<!-- APP SHELL -->
+<div id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<div id="appShell" style="display:none;">
+  <header id="mainHeader">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button id="sidebarToggle" onclick="toggleSidebar()" aria-label="Menú">☰</button>
+      <div class="brand-icon" id="mainBrandIcon"><span>M</span></div>
+      <div style="min-width:0;overflow:hidden;">
+        <div style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.3px;">Malevo</div>
+        <div id="mainBrandSub" style="font-size:9.5px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:1px;">Academia de Baile</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">
+      <div id="estadoSync"><span class="dot"></span>Conectando…</div>
+      <div id="userBadge"></div>
+      <!-- Botón "Modo Alumno" eliminado — el admin accede al portal desde la pestaña Alumnos -->
+      <button class="btn-salir" onclick="abrirResetPassword()" title="Restablecer la contraseña de otro admin o profesor">🔑</button>
+      <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <nav id="mainNav"></nav>
+  <main id="mainContent"></main>
+
+  <!-- ── Vista Modo Alumno (solo accesible desde pestaña Alumnos · app.js) ── -->
+  <div id="modoAlumnoShell" style="display:none;position:fixed;inset:0;z-index:45;
+    background:var(--bg);overflow-y:auto;flex-direction:column;">
+
+    <!-- Barra de contexto admin fija -->
+    <div class="ma-topbar" style="position:sticky;top:0;z-index:10;
+      background:rgba(10,10,10,.97);backdrop-filter:blur(24px);
+      border-bottom:2px solid rgba(226,144,35,.35);
+      padding:10px 24px;display:flex;align-items:center;
+      justify-content:space-between;gap:16px;box-shadow:0 4px 20px rgba(0,0,0,.7);">
+      <div class="ma-topbar-info" style="display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;">
+        <div class="ma-topbar-badge" style="background:rgba(226,144,35,.15);border:1px solid rgba(226,144,35,.35);
+          border-radius:8px;padding:5px 14px;font-size:11.5px;font-weight:700;
+          color:var(--ok);letter-spacing:.5px;white-space:nowrap;flex:0 0 auto;">
+          👁 MODO ALUMNO <span class="ma-topbar-badge-sub">· VISTA PREVIA</span>
+        </div>
+        <span id="modoAlumnoNombre" class="ma-topbar-name" style="font-size:13px;color:var(--gold);font-weight:600;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          Viendo como alumno genérico
+        </span>
+      </div>
+      <button class="ma-topbar-back" onclick="desactivarModoAlumno()"
+        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
+          color:var(--muted);padding:6px 16px;border-radius:var(--r-sm);cursor:pointer;
+          font-size:12.5px;font-family:inherit;font-weight:600;transition:all .2s;
+          white-space:nowrap;flex:0 0 auto;">
+        ← Volver al Panel Admin
+      </button>
+    </div>
+
+    <!-- Header portal simulado -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:11px 24px;background:rgba(10,10,10,.94);
+      backdrop-filter:blur(24px);border-bottom:1px solid rgba(226,144,35,.14);
+      box-shadow:0 4px 24px rgba(0,0,0,.6);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="height:38px;width:38px;border-radius:12px;
+          background:linear-gradient(135deg,#2a1d00,#0a0800);
+          border:1px solid rgba(226,144,35,.45);display:flex;align-items:center;justify-content:center;
+          box-shadow:0 2px 10px rgba(0,0,0,.45);">
+          <span style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;
+            background:linear-gradient(135deg,#E29023,#E29023);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">M</span>
+        </div>
+        <div>
+          <div style="font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--gold-2);">Malevo</div>
+          <div style="font-size:9.5px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;">Mi Espacio</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="maThemeToggle" class="theme-toggle-btn" onclick="maToggleTema()"
+          title="Cambiar a Modo Verde" aria-label="Cambiar tema Dorado/Verde (vista previa)">
+          <span id="maThemeToggleLabel" class="theme-toggle-label">Dorado</span>
+          <span class="theme-toggle-track"><span class="theme-toggle-thumb">✦</span></span>
+        </button>
+        <span id="maUserBadge" style="font-size:12px;font-weight:500;color:var(--text-2);
+          padding:5px 14px;background:rgba(255,255,255,.04);
+          border:1px solid rgba(226,144,35,.14);border-radius:30px;"></span>
+        <span id="maPlanBadge" style="font-size:10.5px;padding:3px 10px;border-radius:20px;
+          font-weight:600;background:rgba(226,144,35,.12);
+          border:1px solid rgba(226,144,35,.25);color:var(--gold-2);display:none;"></span>
+      </div>
+    </div>
+
+    <!-- Nav del portal simulado -->
+    <nav id="maNave" style="display:flex;gap:3px;padding:12px 24px 0;
+      background:rgba(10,10,10,.7);backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(226,144,35,.14);flex-wrap:wrap;"></nav>
+
+    <!-- Tabs vídeo (se muestran solo en sección vídeos) -->
+    <div id="maDiscTabs" style="display:none;"></div>
+    <div id="maNivelPills" style="display:none;"></div>
+
+    <!-- Contenido del portal -->
+    <div id="maContent" style="flex:1;"></div>
+
+  </div>
+</div>
+
+<!-- Flash + Toasts -->
+<div id="flashOverlay"></div>
+<div id="toastContainer" style="position:fixed;bottom:28px;right:28px;z-index:300;
+  display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
+
+<script src="app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ── Punto 2: detección automática de rol en el login del panel admin ──
+   Envuelve hacerLogin (definida en app.js) para interceptar el rol tras
+   autenticar. Si el usuario es alumno, lo redirige a portal.html en lugar
+   de dejarlo en el panel de administración.
+   Se ejecuta después de que app.js cargue para no interferir con su init. */
+(function(){
+  const form = document.getElementById('loginForm');
+  if (!form) return;
+
+  /* Guardamos el handler original que app.js pudo haber registrado */
+  const originalOnsubmit = form.onsubmit;
+
+  form.onsubmit = async function(ev){
+    ev.preventDefault();
+    const username = document.getElementById('logUser').value.trim();
+    const password = document.getElementById('logPass').value;
+    const errEl    = document.getElementById('logError');
+    if (errEl) errEl.textContent = '';
+
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'same-origin'
+      });
+
+      if (!r.ok) {
+        /* Credenciales incorrectas: dejar que app.js muestre el error */
+        if (typeof hacerLogin === 'function') { hacerLogin(ev); }
+        else if (errEl) errEl.textContent = 'Usuario o contraseña incorrectos.';
+        return;
+      }
+
+      const j = await r.json();
+
+      /* Alumno intentando entrar por el panel admin → redirigir */
+      if (j.role === 'student' || j.role === 'alumno') {
+        location.replace('/portal.html');
+        return;
+      }
+
+      /* Admin / teacher → continuar con el flujo normal de app.js */
+      if (typeof window._appArrancar === 'function') {
+        window._appArrancar(j);
+      } else if (typeof hacerLogin === 'function') {
+        /* fallback: relanzar el handler original de app.js */
+        hacerLogin(ev);
+      }
+
+    } catch {
+      if (errEl) errEl.textContent = 'No se pudo conectar con el servidor.';
+    }
+  };
+})();
+</script>
+
+<!-- MODAL: restablecer contraseña de otro admin/profesor -->
+<div class="resetpass-overlay" id="resetPassOverlay">
+  <div class="resetpass-card">
+    <button type="button" class="resetpass-close" onclick="cerrarResetPassword()" aria-label="Cerrar">✕</button>
+    <div class="resetpass-title">Restablecer contraseña</div>
+    <p class="resetpass-sub">Para cuando un admin o profesor (por ejemplo Gimena) no puede entrar y no hay email/SMS para recuperarla. Necesitás estar logueado como admin.</p>
+    <form onsubmit="confirmarResetPassword(event)">
+      <label class="login-label">Usuario</label>
+      <select class="login-input" id="resetPassUsuario" required></select>
+      <label class="login-label" style="margin-top:14px;">Contraseña nueva</label>
+      <input class="login-input" type="text" id="resetPassNueva" minlength="6" placeholder="Mínimo 6 caracteres" required>
+      <button class="login-btn" type="submit">Guardar contraseña nueva</button>
+      <p id="resetPassMsg"></p>
+    </form>
+  </div>
+</div>
+</body>
+</html>

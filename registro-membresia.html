@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Malevo Academia · Activa tu membresía</title>
+
+<!-- ── PWA: manifest propio, start_url:"/registro-membresia.html" — quien
+     instala la app desde este link vuelve directo aquí, y si ya completó
+     el registro/pago (sesión activa), portal.js lo redirige a su portal. ── -->
+<link rel="manifest" href="/manifest-registro.json">
+<meta name="theme-color" content="#050505">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/icons/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Malevo">
+<meta name="mobile-web-app-capable" content="yes">
+<script>
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      console.log('[Malevo] Service Worker registrado. Scope:', reg.scope);
+      reg.update().catch(function(){});
+    }).catch(function(err){
+      console.error('[Malevo] No se pudo registrar el Service Worker (/sw.js):', err);
+    });
+  }
+  // Ver el mismo bloque en index.html: detecta si el dispositivo es un
+  // celular/tablet (a quien sí le sirve instalar la app) o un ordenador
+  // (que ya tiene acceso completo por navegador y nunca debe quedar
+  // bloqueado por esta landing).
+  window._malevoEsMovil = function(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var esAndroidUOtroMovil = /Android|Mobile|Windows Phone/i.test(ua);
+    return esIOS || esAndroidUOtroMovil;
+  };
+  // Decide de forma síncrona, antes de pintar nada, si esta página debe
+  // mostrar el formulario real de registro/pago directo (PWA ya instalada,
+  // o un ordenador) o la landing de instalación (celular/tablet en
+  // navegador normal), agregando una clase a <html> que el CSS usa para
+  // elegir entre ambas.
+  document.documentElement.classList.toggle(
+    'es-standalone',
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    !window._malevoEsMovil()
+  );
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505; --card-bg:#111111; --input-bg:#0a0a0a;
+  --border:rgba(226,144,35,.35); --border-soft:rgba(226,144,35,.2); --border-faint:#2a2a2a;
+  --text:#ffffff; --text-2:#c9c9c9; --muted:#8a8a8a;
+  --gold:#E29023; --gold-2:#FFD573; --gold-deep:#B86E10;
+  --gold-gradient:linear-gradient(135deg,#FFD573 0%,#E29023 50%,#B86E10 100%);
+  --gold-soft:rgba(226,144,35,.12); --gold-glow:rgba(226,144,35,.2);
+  --r-sm:10px; --r:16px; --r-lg:22px;
+  --t:.22s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;padding:20px 12px 40px;}
+
+.phone-shell{max-width:440px;margin:0 auto;position:relative;}
+.screen-card{width:100%;background:var(--card-bg);border:1px solid var(--gold-glow);
+  border-radius:26px;padding:28px 20px 34px;box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 44px rgba(226,144,35,.09);}
+
+/* ══ LANDING DE INSTALACIÓN ══
+   Mismo comportamiento que index.html (ver ese archivo para el
+   comentario completo): en un navegador normal esto reemplaza al
+   formulario de registro/pago; solo con la clase "es-standalone" en
+   <html> (agregada de forma síncrona en el <head>) se muestra el
+   formulario real. Markup y JS calcados de index.html con textos propios
+   para el alumno — si se cambia el diseño en un lado, replicar en el otro. */
+#instalarOverlay{display:flex;position:fixed;inset:0;z-index:110;
+  flex-direction:column;align-items:center;justify-content:center;
+  background:#000;padding:36px 26px;text-align:center;overflow-y:auto;}
+html.es-standalone #instalarOverlay{display:none;}
+html:not(.es-standalone) #checkoutMain{display:none;}
+.instalar-logo{width:132px;height:auto;margin-bottom:26px;
+  filter:drop-shadow(0 0 30px rgba(226,144,35,.25));}
+.instalar-titulo{font-family:'Sora',sans-serif;font-size:21px;font-weight:800;
+  color:#fff;letter-spacing:-.2px;margin-bottom:8px;}
+.instalar-sub{font-size:13px;color:#a0a0a0;max-width:320px;line-height:1.65;margin-bottom:26px;}
+.instalar-btn-nativo{display:none;align-items:center;gap:8px;background:var(--gold-gradient);
+  color:#1a1204;border:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:14px;
+  font-family:'Inter',sans-serif;cursor:pointer;margin-bottom:22px;
+  box-shadow:0 8px 24px rgba(226,144,35,.3);}
+.instalar-pasos{display:none;width:100%;max-width:340px;text-align:left;
+  background:rgba(255,255,255,.03);border:1px solid rgba(226,144,35,.18);
+  border-radius:16px;padding:18px 20px;margin-bottom:8px;}
+.instalar-paso{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:#d8d8d8;line-height:1.5;}
+.instalar-paso+.instalar-paso{margin-top:14px;}
+.instalar-paso-num{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
+  background:rgba(226,144,35,.14);border:1px solid rgba(226,144,35,.4);color:var(--gold-2);
+  font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.instalar-paso strong{color:#fff;font-weight:600;}
+.instalar-nota{margin-top:22px;font-size:11px;color:#707070;max-width:300px;}
+.instalar-tabs{display:flex;gap:8px;margin-bottom:18px;}
+.instalar-tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  color:#a0a0a0;padding:7px 16px;border-radius:30px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;}
+.instalar-tab.activa{background:rgba(226,144,35,.14);border-color:var(--gold);color:var(--gold-2);}
+
+.logo-img{display:block;margin:0 auto 16px;max-width:140px;height:auto;}
+.pareja-img{display:block;width:100%;max-height:170px;object-fit:cover;border-radius:var(--r-lg);
+  margin-bottom:18px;box-shadow:0 12px 30px rgba(0,0,0,.6),0 0 0 1px var(--border-soft);}
+
+.screen-title{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;text-align:center;
+  background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:6px;letter-spacing:-.3px;}
+.screen-subtitle{font-size:13.5px;color:var(--text-2);text-align:center;margin-bottom:22px;}
+
+.section-label{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--gold-2);
+  text-transform:uppercase;margin:22px 0 10px;display:block;}
+
+/* ── PLANES ── */
+.bono-lista{display:flex;flex-direction:column;gap:10px;}
+.bono-item{display:flex;align-items:center;gap:12px;background:var(--input-bg);
+  border:1.5px solid var(--border-faint);border-radius:var(--r);padding:14px 16px;
+  cursor:pointer;transition:all var(--t);position:relative;}
+.bono-item.seleccionada{border-color:var(--gold);background:rgba(226,144,35,.08);
+  box-shadow:0 0 0 1px var(--gold-glow),0 0 20px var(--gold-glow);}
+
+.bono-item-icon{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border-faint);flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;color:var(--gold);background:#161616;}
+.bono-item.seleccionada .bono-item-icon{background:var(--gold-gradient);border-color:var(--gold);color:#0a0600;}
+.bono-item-icon svg{width:18px;height:18px;}
+
+.bono-item-info{flex:1;min-width:0;}
+.bono-item-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.bono-item-nombre{font-size:13.5px;font-weight:800;}
+.bono-item-badge{font-size:8.5px;font-weight:800;letter-spacing:.3px;color:#1a0f00;
+  background:var(--gold-gradient);padding:2px 6px;border-radius:12px;white-space:nowrap;}
+.bono-item-detalle{font-size:11.5px;color:var(--text-2);}
+.bono-item-compromiso{font-size:10.5px;color:#ff6b81;font-weight:600;margin-top:2px;}
+
+.bono-item-precio{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;text-align:right;
+  background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.bono-item-precio small{display:block;font-family:'Inter',sans-serif;font-size:9px;font-weight:600;color:var(--muted);-webkit-text-fill-color:var(--muted);}
+
+/* ── MÉTODOS DE PAGO ── */
+.metodo-row{display:flex;align-items:center;gap:12px;background:var(--input-bg);
+  border:1px solid var(--border-faint);border-radius:var(--r-sm);padding:14px;
+  margin-bottom:8px;cursor:pointer;transition:all var(--t);}
+.metodo-row.sel{border-color:var(--gold);background:rgba(226,144,35,.05);}
+.metodo-radio{width:18px;height:18px;border-radius:50%;border:2px solid #555;position:relative;flex:0 0 auto;}
+.metodo-row.sel .metodo-radio{border-color:var(--gold);}
+.metodo-row.sel .metodo-radio::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gold);}
+.metodo-label{flex:1;font-size:13.5px;font-weight:600;}
+
+/* ── INPUTS Y BOTONES ── */
+.field{position:relative;}
+.field input{width:100%;background:var(--input-bg);border:1px solid var(--border-faint);
+  border-radius:var(--r-sm);padding:13px 14px 13px 42px;color:var(--text);font-size:13.5px;transition:all var(--t);}
+.field input::placeholder{color:var(--muted);}
+.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-glow);}
+.field .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gold);
+  width:16px;height:16px;pointer-events:none;display:flex;}
+.field .icon svg{width:16px;height:16px;}
+
+.btn-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  background:#1a1a1a;border:1px solid #333;border-radius:var(--r-sm);padding:13px;
+  color:#fff;font-weight:600;font-size:13.5px;cursor:pointer;transition:all var(--t);margin-bottom:14px;}
+.btn-google:hover{background:#252525;border-color:#555;}
+.btn-google svg{width:18px;height:18px;}
+
+.divider-text{text-align:center;font-size:11px;color:var(--muted);margin:12px 0;position:relative;}
+.divider-text::before, .divider-text::after{content:'';position:absolute;top:50%;width:35%;height:1px;background:#222;}
+.divider-text::before{left:0;} .divider-text::after{right:0;}
+
+.terms-group{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+.terms-row{display:flex;align-items:flex-start;gap:10px;font-size:11.5px;color:var(--text-2);line-height:1.45;}
+.terms-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;margin-top:2px;flex:0 0 auto;}
+.terms-row a{color:var(--gold-2);text-decoration:none;}
+
+.btn-primary{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--gold-gradient);border:none;border-radius:var(--r-sm);padding:15px;
+  color:#0a0600;font-weight:800;font-size:14px;letter-spacing:.4px;text-transform:uppercase;
+  cursor:pointer;transition:all var(--t);margin-top:10px;
+  box-shadow:0 8px 24px rgba(226,144,35,.25);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(226,144,35,.35);}
+
+.exito-box{display:none;text-align:center;padding:20px 10px;}
+.exito-box.show{display:block;}
+.exito-icon{width:64px;height:64px;border-radius:50%;background:var(--gold-gradient);color:#0a0600;
+  font-size:32px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.exito-countdown{font-size:11.5px;color:var(--muted);margin-top:12px;}
+.exito-countdown b{color:var(--gold-2);}
+
+.form-err{display:none;color:#ff6b81;font-size:12px;background:rgba(255,107,129,.08);
+  border:1px solid rgba(255,107,129,.25);border-radius:var(--r-sm);padding:10px 12px;margin-top:10px;}
+.form-err.show{display:block;}
+.fiscal-box{display:none;flex-direction:column;gap:8px;margin:-2px 0 12px;}
+.fiscal-box.show{display:flex;}
+.fiscal-hint{font-size:10.5px;color:var(--muted);margin:-4px 0 2px;}
+.metodo-row.disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.metodo-note{font-size:10.5px;color:var(--muted);margin:-2px 0 10px;padding:0 2px;}
+.btn-primary[disabled]{opacity:.6;cursor:not-allowed;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<!-- LANDING DE INSTALACIÓN — calcada de index.html con textos para el
+     alumno. Al terminar de instalar y abrir el ícono, esta misma URL
+     (start_url del manifest-registro.json) muestra directo el formulario
+     de pago/registro de #checkoutMain. -->
+<div id="instalarOverlay">
+  <img class="instalar-logo" src="/assets/malevo-logo-real.png" alt="Malevo Academia">
+  <div class="instalar-titulo">Instala Malevo en tu móvil para activar tu membresía</div>
+  <p class="instalar-sub">Añade la app a tu pantalla de inicio: al abrirla vas a entrar directo a tu pantalla de pago para activar tu acceso a las clases.</p>
+
+  <button type="button" class="instalar-btn-nativo" id="btnInstalarNativo" onclick="_instalarPWANativo()">⬇ Instalar ahora</button>
+
+  <div class="instalar-tabs" id="instalarTabs">
+    <button type="button" class="instalar-tab" data-plataforma="android" onclick="_instalarMostrarPasos('android')">Android</button>
+    <button type="button" class="instalar-tab" data-plataforma="ios" onclick="_instalarMostrarPasos('ios')">iPhone</button>
+  </div>
+
+  <div class="instalar-pasos" id="pasosAndroid">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca los <strong>tres puntos ⋮</strong> arriba a la derecha del navegador.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Elige <strong>Instalar aplicación</strong> (o <strong>Añadir a pantalla de inicio</strong>).</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Confirma tocando <strong>Instalar</strong>.</span></div>
+  </div>
+
+  <div class="instalar-pasos" id="pasosIOS">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en Safari.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Desliza y elige <strong>Añadir a pantalla de inicio</strong>.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Toca <strong>Añadir</strong> arriba a la derecha.</span></div>
+  </div>
+
+  <p class="instalar-nota">¿Ya la instalaste? Abre el ícono de Malevo desde tu pantalla de inicio para activar tu membresía.</p>
+</div>
+<script>
+(function(){
+  function _instalarDetectarPlataforma(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return esIOS ? 'ios' : 'android';
+  }
+  window._instalarMostrarPasos = function(plataforma){
+    var pasosAndroid = document.getElementById('pasosAndroid');
+    var pasosIOS = document.getElementById('pasosIOS');
+    if (pasosAndroid) pasosAndroid.style.display = (plataforma === 'android') ? 'block' : 'none';
+    if (pasosIOS) pasosIOS.style.display = (plataforma === 'ios') ? 'block' : 'none';
+    var tabs = document.querySelectorAll('#instalarTabs .instalar-tab');
+    tabs.forEach(function(t){ t.classList.toggle('activa', t.dataset.plataforma === plataforma); });
+  };
+  var _deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    // Ver el comentario completo en index.html: en un ordenador no
+    // interceptamos este evento (la landing ya no se le muestra), así que
+    // dejamos que el propio navegador ofrezca instalar con su ícono nativo.
+    if (!window._malevoEsMovil()) return;
+    e.preventDefault();
+    _deferredPrompt = e;
+    var btn = document.getElementById('btnInstalarNativo');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+  window._instalarPWANativo = function(){
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.finally(function(){
+      _deferredPrompt = null;
+      var btn = document.getElementById('btnInstalarNativo');
+      if (btn) btn.style.display = 'none';
+    });
+  };
+  // Ver el comentario completo en index.html: 'appinstalled' es la señal
+  // fiable de que la instalación terminó de verdad, tanto por el botón
+  // nativo como por los pasos manuales.
+  window.addEventListener('appinstalled', function(){
+    var overlay = document.getElementById('instalarOverlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div style="font-size:52px;line-height:1;margin-bottom:18px;">✅</div>' +
+      '<div class="instalar-titulo">¡Aplicación instalada con éxito!</div>' +
+      '<p class="instalar-sub">Ya puedes cerrar esta pestaña y abrir Malevo desde el ícono que se agregó a tu pantalla de inicio para activar tu membresía.</p>';
+    setTimeout(function(){ try { window.close(); } catch(e){} }, 2500);
+  });
+  window._instalarMostrarPasos(_instalarDetectarPlataforma());
+})();
+</script>
+
+<div class="phone-shell">
+  <div class="screen-card">
+    
+    <div id="checkoutMain">
+      <img class="logo-img" src="assets/malevo-logo-real.png" alt="Malevo Academia">
+      <img class="pareja-img" src="assets/malevo-pareja-real.png" alt="Malevo Academia">
+
+      <h1 class="screen-title">Bienvenido a Malevo</h1>
+      <p class="screen-subtitle">Elige tu plan y activa tu acceso</p>
+
+      <!-- 1. SELECCIÓN DE PLAN -->
+      <span class="section-label">1. Selecciona tu plan</span>
+      <div class="bono-lista" id="bonoLista"></div>
+
+      <form id="formCheckout" onsubmit="completarPago(event)">
+        <!-- 2. PAGO: único método disponible en la pasarela automática es
+             Tarjeta — Bizum y Transferencia se gestionan aparte, de forma
+             manual, directamente por administración (ver panel de admin:
+             alta manual + enlace directo al portal). El botón lleva
+             SIEMPRE a la pasarela oficial de Stripe (sin auto-confirmación
+             propia); los datos de identificación (nombre, email, teléfono)
+             los recoge la propia página de Stripe Checkout — no hace
+             falta pedirlos aquí. -->
+        <span class="section-label">2. Método de pago</span>
+
+        <div class="metodo-row sel" style="cursor:default;">
+          <div class="metodo-radio"></div>
+          <div class="metodo-label">Tarjeta de Crédito / Débito</div>
+        </div>
+
+        <p class="fiscal-hint">Al pulsar el botón te llevamos a la pasarela segura de Stripe para completar el pago. Tu cuenta se activa automáticamente en cuanto Stripe confirma que el pago se procesó.</p>
+
+        <!-- TÉRMINOS, CONDICIONES Y PERMISO DE IMAGEN — una sola casilla
+             obligatoria que agrupa las tres cosas (permanencia, Términos del
+             servicio y uso de imagen). No se puede aceptar una parte sí y
+             otra no: es todo o nada, igual que antes (las dos casillas
+             separadas ya eran "checked required" cada una, así que en la
+             práctica funcionaban como una sola aceptación obligatoria). -->
+        <div class="terms-group">
+          <label class="terms-row">
+            <input type="checkbox" checked required>
+            <span>Acepto las condiciones de permanencia de 2 meses, los <a href="#" onclick="return false">Términos del servicio</a>, y autorizo el uso de mi imagen grabada durante las clases y actividades promocionales de Malevo Academia.</span>
+          </label>
+        </div>
+
+        <p class="form-err" id="formErr"></p>
+
+        <button type="submit" class="btn-primary" id="btnPagar" disabled>
+          <span id="lblBotonPago">SELECCIONA UN PLAN</span>
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PLANES = [
+  {
+    id: 'bono35',
+    planCode: '35',       // código de plan en el backend (db.config.precios)
+    recurrente: true,     // cuota mensual → Stripe Checkout en modo suscripción
+    nombre: 'BONO 35€ / MES',
+    detalle: '1 clase por semana',
+    compromiso: null,
+    badge: null,
+    destacado: false,
+    precio: '35€',
+    unidad: '/ mes',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+  },
+  {
+    id: 'bono50',
+    planCode: '50',
+    recurrente: true,
+    nombre: 'BONO 50€ / MES',
+    detalle: '2 clases por semana',
+    compromiso: 'Compromiso de 2 meses',
+    badge: null,
+    destacado: false,
+    precio: '50€',
+    unidad: '/ mes',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+  },
+  {
+    id: 'planVip',
+    planCode: '80',
+    recurrente: true,
+    nombre: 'PLAN VIP 80€ / MES',
+    detalle: 'Acceso total · Clases + Talleres · Pareja',
+    compromiso: 'Compromiso de 2 meses',
+    badge: '★ Recomendado',
+    destacado: true,
+    precio: '80€',
+    unidad: '/ mes',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z"/></svg>`
+  },
+  {
+    id: 'bono5clases',
+    planCode: 'bono',
+    recurrente: false,    // paquete de pago único → Stripe Checkout en modo 'payment' (sin permanencia)
+    nombre: 'BONO 5 CLASES',
+    detalle: 'Paquete de 5 clases sueltas',
+    compromiso: null,
+    badge: null,
+    destacado: false,
+    precio: '50€',
+    unidad: '/ 5 clases',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="12" y1="6" x2="12" y2="18"/></svg>`
+  }
+];
+
+// Ningún plan viene marcado por defecto — el alumno tiene que elegir uno
+// haciendo clic. Hasta entonces, el botón de pago queda deshabilitado.
+let planSeleccionado = null;
+// Único método disponible en la pasarela automática (ver nota junto a la
+// sección "2. Método de pago" en el HTML) — ya no es una preferencia
+// seleccionable, pero se sigue mandando al backend para no romper la
+// firma del endpoint /api/onboarding/checkout-directo.
+const metodoPreferido = 'tarjeta';
+let inviteToken = null;
+
+/* ── Código de referido (?ref=CODIGO en la URL, ver enlace de "Invita y
+   gana" del portal): se captura al cargar la página y se manda tal cual
+   a /api/onboarding/checkout-directo. Si no hay ?ref= en la URL, refCode
+   queda vacío y el pago sigue igual, sin vincular a ningún promotor. ── */
+const refCode = new URLSearchParams(location.search).get('ref') || '';
+
+/* ── Token de invitación público: el backend lo exige en
+   /api/onboarding/checkout-directo para evitar altas anónimas sin
+   control. Esta página ES el punto de alta público de la academia, así
+   que usa el endpoint sin auth pensado para eso. ── */
+async function obtenerInviteToken() {
+  try {
+    const r = await fetch('/api/onboarding/public-token', { credentials: 'same-origin' });
+    const d = await r.json();
+    if (d.ok) inviteToken = d.token;
+  } catch (e) { /* sin conexión con el servidor — se reintenta al enviar el formulario */ }
+}
+
+function renderPlanes() {
+  const cont = document.getElementById('bonoLista');
+  cont.innerHTML = PLANES.map(p => `
+    <div class="bono-item ${planSeleccionado && p.id === planSeleccionado.id ? 'seleccionada' : ''}" onclick="seleccionarPlan('${p.id}')">
+      <div class="bono-item-icon">${p.icon}</div>
+      <div class="bono-item-info">
+        <div class="bono-item-top">
+          <span class="bono-item-nombre">${p.nombre}</span>
+          ${p.badge ? `<span class="bono-item-badge">${p.badge}</span>` : ''}
+        </div>
+        <div class="bono-item-detalle">${p.detalle}</div>
+        ${p.compromiso ? `<div class="bono-item-compromiso">📌 ${p.compromiso}</div>` : ''}
+      </div>
+      <div class="bono-item-precio">${p.precio}<small>${p.unidad}</small></div>
+    </div>
+  `).join('');
+
+  actualizarBotonPago();
+}
+
+function seleccionarPlan(id) {
+  planSeleccionado = PLANES.find(p => p.id === id);
+  renderPlanes();
+}
+
+/* ── Refleja en el botón si ya hay un plan elegido: mientras no lo haya,
+   queda deshabilitado y sin precio — nada se preselecciona solo. ── */
+function actualizarBotonPago() {
+  const btn = document.getElementById('btnPagar');
+  const lbl = document.getElementById('lblBotonPago');
+  if (planSeleccionado) {
+    btn.removeAttribute('disabled');
+    lbl.textContent = `PAGAR Y ACTIVAR ${planSeleccionado.precio}`;
+  } else {
+    btn.setAttribute('disabled', 'disabled');
+    lbl.textContent = 'SELECCIONA UN PLAN';
+  }
+}
+
+function mostrarError(msg) {
+  const errBox = document.getElementById('formErr');
+  errBox.textContent = msg;
+  errBox.classList.add('show');
+}
+
+/* ── Envío real del formulario: crea DIRECTAMENTE la sesión de Stripe
+   Checkout, sin registrar ninguna cuenta previa en nuestro backend. Los
+   datos de identificación (nombre, email, teléfono) los recoge la propia
+   página de Stripe. La cuenta del alumno se crea recién cuando el pago
+   se confirma de verdad — ver /api/onboarding/confirmar-checkout y el
+   webhook de Stripe (stripeBilling.manejarWebhook) en el servidor. No
+   hay ninguna vía para activar una cuenta desde aquí. ── */
+async function completarPago(e) {
+  e.preventDefault();
+  const errBox = document.getElementById('formErr');
+  errBox.classList.remove('show');
+  errBox.textContent = '';
+
+  if (!planSeleccionado) {
+    return mostrarError('Selecciona un plan para continuar.');
+  }
+
+  const btn = document.getElementById('btnPagar');
+  const lbl = document.getElementById('lblBotonPago');
+  const textoOriginal = lbl.textContent;
+  btn.setAttribute('disabled', 'disabled');
+  lbl.textContent = 'Conectando con Stripe…';
+
+  try {
+    if (!inviteToken) await obtenerInviteToken();
+    if (!inviteToken) throw new Error('No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.');
+
+    const rCheckout = await fetch('/api/onboarding/checkout-directo', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: inviteToken, plan: planSeleccionado.planCode, metodoPreferido,
+        refCode: refCode || undefined, aceptadoImagen: true, aceptadoPermanencia: true
+      })
+    });
+    const dCheckout = await rCheckout.json();
+    if (!rCheckout.ok || !dCheckout.ok) {
+      throw new Error(dCheckout.error || 'El pago no está disponible ahora mismo. Inténtalo de nuevo en unos minutos o contacta con administración.');
+    }
+    window.location.href = dCheckout.url; // Stripe Checkout real — al terminar, Stripe vuelve a portal.html
+    return; // la página está a punto de navegar fuera: no restauramos el botón
+  } catch (err) {
+    mostrarError(err.message || 'Ha ocurrido un error. Inténtalo de nuevo.');
+    btn.removeAttribute('disabled');
+    lbl.textContent = textoOriginal;
+  }
+}
+
+renderPlanes();
+obtenerInviteToken();
+</script>
+</body>
+</html>

@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Malevo · Mi Espacio</title>
+
+<!-- ── PWA: manifest + iconos, para que Android/iOS instalen la app con su
+     propio icono y la abran en pantalla completa (sin barra de direcciones) ── -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/icons/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Malevo">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0A0A;--surface:rgba(255,255,255,.04);--surface-2:rgba(255,255,255,.07);
+  --glass:rgba(255,255,255,.04);--card-bg:#161616;--card-border:#2A2A2A;
+  --border:#2A2A2A;--border-2:rgba(226,144,35,.32);
+  --border-hi:rgba(226,144,35,.5);--text:#FFFFFF;--text-2:#A0A0A0;--muted:#707070;--faint:#454545;
+  --accent:#E29023;--accent-2:#FFD573;--accent-deep:#B86E10;
+  --accent-soft:rgba(226,144,35,.14);--accent-glow:rgba(226,144,35,.38);
+  --gold:#E29023;--gold-2:#FFD573;--gold-light:#FFD573;--gold-deep:#B86E10;
+  --gold-gradient:linear-gradient(135deg,#FFD573 0%,#E29023 50%,#B86E10 100%);
+  --gold-soft:rgba(226,144,35,.14);--gold-glow:rgba(226,144,35,.2);
+  --ok:#E29023;--ok-soft:rgba(226,144,35,.13);--ok-glow:rgba(226,144,35,.30);
+  --warn:#e05c5c;--warn-soft:rgba(224,92,92,.13);--warn-glow:rgba(224,92,92,.30);
+  --magenta:#E024C3;--cyan:#10C2C4;
+  --white:#fff;--white-soft:rgba(255,255,255,.90);
+  --shadow:0 8px 32px rgba(0,0,0,.70);--shadow-lg:0 24px 64px rgba(0,0,0,.85);
+  --shadow-gold:0 0 32px rgba(226,144,35,.25),0 8px 32px rgba(0,0,0,.70);
+  --t:.22s cubic-bezier(.4,0,.2,1);--r-sm:10px;--r:16px;--r-lg:22px;--r-xl:28px;
+  /* Acento fijo para barras/indicadores de progreso puntuales (p.ej. pips de
+     clases desbloqueadas en Mis Vídeos): dorado en el tema normal, verde en
+     Modo Verde — independiente de --gold para que el progreso siga siendo
+     visible aunque --gold quede neutro en Modo Verde. */
+  --progress-accent:#E29023;--progress-accent-soft:rgba(226,144,35,.25);
+  --stat-number:var(--gold);
+}
+/* ══════════════════════════════════════════════════════════════════════
+   MODO VERDE — tema alternativo del portal, activado con la clase
+   .theme-green en <body> (ver pToggleTema()/pInicializarTema() en
+   portal.js). Misma estructura y densidad de color que el Modo Dorado:
+   declara la paleta verde oficial y remapea las variables que ya usa TODO
+   el CSS existente (--gold, --ok, --accent...) a esos valores, así el
+   tema cambia de golpe sin tocar cada regla — donde el dorado pinta
+   naranja, el verde pinta verde oscuro, con la misma estructura, bordes,
+   fondos y sombras. El único verde neón brillante (--accent-green) queda
+   reservado a un par de detalles puntuales (botón "Confirmar pago" e
+   indicador de racha), igual que el dorado reserva su propio glow a
+   momentos concretos, no a toda la interfaz. ══ */
+body.theme-green{
+  --bg-base:#0a0a0a;--bg-header-sidebar:#0d0d0d;--bg-card:#161616;
+  --bg-card-sec:#1a1a1a;--bg-card-hover:#111111;--bg-micro:#0d0d0d;
+  --border-card:#2a2a2a;--border-inner:#1e1e1e;--border-hover:#3a3a3a;--border-divider:#1a1a1a;
+  --text-title:#ffffff;--text-sec:#888888;--text-muted:#606060;--text-dark:#333333;
+  /* Verde neón — reservado a 1-2 detalles puntuales (ver overrides). */
+  --accent-green:#00ff66;--accent-green-soft:#33ff88;
+  --accent-green-border:rgba(0,255,102,.35);--accent-green-bg:rgba(0,255,102,.09);
+  --accent-green-glow:rgba(0,255,102,.22);--accent-green-deep:#008833;
+  /* Verde oscuro estructural — equivalente directo del dorado (#E29023),
+     usado en toda la interfaz igual que el dorado: bordes, textos de
+     acento, fondos suaves, degradados, sombras. */
+  --green-light:#6EE7A0;--green-dark:#1FAF63;--green-deep:#0C5C34;
+  --green-gradient:linear-gradient(135deg,#6EE7A0 0%,#1FAF63 50%,#0C5C34 100%);
+  --green-soft:rgba(31,175,99,.14);--green-glow:rgba(31,175,99,.2);
+  --green-glow-strong:rgba(31,175,99,.38);--green-ok-glow:rgba(31,175,99,.30);
+  --green-border2:rgba(31,175,99,.32);--green-border-hi:rgba(31,175,99,.5);
+  --green-shadow:0 0 32px rgba(31,175,99,.25),0 8px 32px rgba(0,0,0,.70);
+  --green-progress-soft:rgba(31,175,99,.25);
+  --font-title:'Sora',sans-serif;--font-body:'Inter',sans-serif;
+
+  /* Remapeo del sistema de variables existente: misma estructura que el
+     dorado, con naranja → verde oscuro en cada variable de acento. */
+  --bg:var(--bg-base);--surface:rgba(255,255,255,.04);--surface-2:rgba(255,255,255,.07);
+  --glass:rgba(255,255,255,.04);--card-bg:var(--bg-card);--card-border:var(--border-card);
+  --border:var(--border-card);--border-2:var(--green-border2);--border-hi:var(--green-border-hi);
+  --text:var(--text-title);--text-2:var(--text-sec);--muted:var(--text-muted);--faint:var(--text-dark);
+  --accent:var(--green-dark);--accent-2:var(--green-light);--accent-deep:var(--green-deep);
+  --accent-soft:var(--green-soft);--accent-glow:var(--green-glow-strong);
+  --gold:var(--green-dark);--gold-2:var(--green-light);--gold-light:var(--green-light);--gold-deep:var(--green-deep);
+  --gold-gradient:var(--green-gradient);
+  --gold-soft:var(--green-soft);--gold-glow:var(--green-glow);
+  --ok:var(--green-dark);--ok-soft:var(--green-soft);--ok-glow:var(--green-ok-glow);
+  --white:#fff;--white-soft:rgba(255,255,255,.90);
+  --shadow-gold:var(--green-shadow);
+  --progress-accent:var(--green-dark);--progress-accent-soft:var(--green-progress-soft);
+  --stat-number:var(--green-dark);
+}
+/* Textura ambiental de fondo: negro puro, sin tinte de color — el verde
+   vive solo en los acentos puntuales (bordes, textos, botones), nunca
+   como fondo. */
+body.theme-green::after{
+  background:radial-gradient(ellipse 80% 60% at 15% -10%,rgba(255,255,255,.025) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 110%,rgba(255,255,255,.02) 0%,transparent 55%);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   OVERRIDES DE COMPONENTES — Modo Verde
+   El remapeo de variables de arriba ya cubre casi todo (misma estructura
+   que el dorado). Estos overrides traducen a verde las reglas de este
+   archivo que hardcodean el naranja/dorado en vez de usar variables
+   (paleta propia de Cursos Exclusivos, glows, degradados de "invita y
+   gana"...). El neón brillante (--accent-green) solo aparece en el botón
+   de pago y en el indicador de racha — el resto usa el verde oscuro
+   estructural (--gold, ya remapeado arriba), igual de presente en toda
+   la interfaz que el naranja en Modo Dorado, pero nunca a todo volumen. ══ */
+
+.theme-green .pnav-btn.active{
+  background:rgba(255,255,255,.05);color:var(--text-title);
+  border-color:var(--border-card);
+  border-left:2px solid var(--gold);padding-left:11px;
+}
+.theme-green .disc-tab.active{color:var(--text-title);}
+.theme-green .disc-tab.active::after{background:var(--gold);}
+.theme-green .mp-tab.active{background:rgba(255,255,255,.05);color:var(--text-title);}
+.theme-green input:focus,.theme-green select:focus,.theme-green textarea:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-soft),0 0 14px var(--gold-glow);
+  background:rgba(255,255,255,.04);
+}
+.theme-green .pass-toggle-btn:hover{color:var(--gold);}
+.theme-green .btn.sec:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-soft);}
+.theme-green .badge.ok{border-color:rgba(31,175,99,.2);}
+.theme-green .badge.gold{border-color:rgba(31,175,99,.25);}
+.theme-green .portal-toast.ok{border-color:rgba(31,175,99,.28);}
+.theme-green .portal-toast.info{border-color:rgba(31,175,99,.28);}
+.theme-green .vi-done,.theme-green .video-row .vi-done{background:var(--gold);box-shadow:0 0 6px var(--gold-glow);}
+.theme-green .video-item.calent-item:hover{box-shadow:0 0 16px var(--gold-glow);}
+.theme-green .video-row::after{background:var(--gold);}
+.theme-green .video-row:hover,.theme-green .mp-list-panel .video-row:hover{border-color:var(--border-2);}
+.theme-green .video-row.active,.theme-green .mp-list-panel .video-row.active{border-color:var(--border-hover);background:rgba(255,255,255,.04);}
+.theme-green .video-row-num{background:radial-gradient(circle at 50% 32%,rgba(255,255,255,.06),rgba(0,0,0,0) 72%),var(--bg);border-color:var(--border-hover);color:var(--text-sec);}
+.theme-green .video-row:hover .video-row-num{border-color:var(--gold);box-shadow:0 0 10px var(--gold-glow);}
+.theme-green .video-row.visto .video-row-num{border-color:var(--gold);}
+.theme-green .video-row.active .video-row-num{background:var(--gold);border-color:var(--gold);color:#04140a;box-shadow:0 0 12px var(--gold-glow);}
+.theme-green .clase-mini:hover{border-color:var(--gold);}
+.theme-green .clase-mini.active{border-color:var(--border-hover);background:rgba(255,255,255,.04);}
+.theme-green .video-status-bar:hover{background:rgba(31,175,99,.04);border-top-color:var(--gold);}
+.theme-green .mp-header-logo .mp-logo-m{color:var(--text-title);text-shadow:none;}
+.theme-green .mp-row-menu-pop button:hover{background:var(--gold-soft);color:var(--gold);}
+.theme-green .mp-bb-play{box-shadow:0 0 10px rgba(255,255,255,.15);}
+.theme-green .mp-bb-seek::-webkit-slider-thumb,.theme-green .mp-bb-vol::-webkit-slider-thumb{box-shadow:0 0 6px rgba(255,255,255,.2);}
+.theme-green .mp-bb-seek::-moz-range-thumb,.theme-green .mp-bb-vol::-moz-range-thumb{box-shadow:0 0 6px rgba(255,255,255,.2);}
+/* Racha de asistencia: uno de los 1-2 detalles puntuales con permiso de neón */
+.theme-green .racha-fuego-icon{filter:drop-shadow(0 0 14px var(--accent-green-glow)) drop-shadow(0 0 24px var(--accent-green-glow));}
+.theme-green .racha-bar-fill{background:linear-gradient(90deg,var(--accent-green-soft),var(--accent-green));box-shadow:0 0 10px var(--accent-green-glow);}
+.theme-green .racha-video-circulo.encendido{background:radial-gradient(circle at 50% 32%,var(--accent-green-soft),var(--accent-green));border-color:var(--accent-green);color:#04140a;box-shadow:0 0 10px var(--accent-green-glow),0 0 18px var(--accent-green-glow);}
+.theme-green .cal-mes-opcion.activa{background:rgba(255,255,255,.06);color:var(--text-title);}
+.theme-green .cal-day-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px var(--gold-glow);}
+.theme-green .cal-day-hoy-gold{background:var(--gold);box-shadow:0 0 8px var(--gold-glow);}
+.theme-green .cal-legend-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px var(--gold-glow);}
+.theme-green .nivel-pill:hover:not(.locked){border-color:var(--gold);color:var(--gold);background:var(--gold-soft);}
+.theme-green .nivel-pill.active{background:rgba(255,255,255,.06);border-color:var(--border-hover);color:var(--text-title);}
+/* Banner de Referidos: mismo tratamiento cálido que en Modo Dorado, en verde */
+.theme-green .ref-hero-card{border-color:var(--gold);background:linear-gradient(135deg,rgba(31,175,99,.06) 0%,rgba(12,92,52,.03) 55%,transparent 100%);box-shadow:none;}
+.theme-green .ref-hero-title{color:var(--gold-2);text-shadow:none;}
+.theme-green .ref-discount-box{border-color:rgba(31,175,99,.12);}
+.theme-green .ref-discount-box.ref-discount-active{background:rgba(31,175,99,.08);border-color:var(--gold);box-shadow:none;}
+.theme-green .ref-discount-img{filter:none;}
+.theme-green .pago-cuota-metodo.sel{border-color:var(--gold);background:rgba(31,175,99,.12);color:#fff;}
+/* Cursos Exclusivos (paleta propia #D4A359, independiente del sistema de
+   variables) → equivalente verde claro, misma estructura */
+.theme-green .cx-subtitulo{color:var(--green-light);}
+.theme-green .cx-pill{border-color:rgba(110,231,160,.4);}
+.theme-green .cx-pill:hover{border-color:var(--green-light);color:var(--green-light);}
+.theme-green .cx-pill.active{background:rgba(110,231,160,.14);border-color:var(--green-light);color:var(--green-light);box-shadow:0 0 0 3px rgba(110,231,160,.14),0 0 14px rgba(110,231,160,.35);}
+.theme-green .cx-acc{border-color:rgba(110,231,160,.3);}
+.theme-green .cx-acc.open .cx-acc-head{border-bottom-color:rgba(110,231,160,.25);}
+.theme-green .cx-acc-chevron{color:var(--green-light);}
+.theme-green .cx-card{border-color:rgba(110,231,160,.45);}
+.theme-green .cx-card:hover{box-shadow:0 8px 24px rgba(110,231,160,.2);}
+.theme-green .cx-card-play{background:rgba(110,231,160,.95);}
+.theme-green .cx-lock-badge{border-color:var(--green-light);background:rgba(0,0,0,.55);}
+.theme-green .cx-lock-badge-ico,.theme-green .cx-lock-badge-txt{color:var(--green-light);}
+/* Botón "Confirmar pago": el otro detalle puntual con permiso de neón (glow al hover) */
+.theme-green #btnPagar{background:var(--gold-gradient) !important;color:#0a0a0a !important;}
+.theme-green #btnPagar:hover{box-shadow:0 0 0 1px var(--accent-green-border),0 6px 20px var(--accent-green-glow);}
+/* Red de seguridad: cualquier estilo inline que aún hardcodee el naranja
+   (perfil, referidos, pago, login...) se traduce a su equivalente verde
+   oscuro estructural bajo Modo Verde. */
+body.theme-green [style*="226,144,35"]{
+  background:rgba(31,175,99,.09) !important;
+  border-color:rgba(31,175,99,.35) !important;
+  box-shadow:none !important;
+}
+/* Logo "M" del login (span sin clase, duplicado del header): mismo
+   degradado de texto que el dorado, en verde. */
+body.theme-green [style*="#E29023"]{
+  background:linear-gradient(135deg,var(--green-light),var(--green-dark)) !important;
+  -webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;
+}
+.theme-green .cr-card [style*="212,163,89"]{background:rgba(110,231,160,.09) !important;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+/* Blindaje anti-desbordamiento horizontal: html también clipea en X (antes
+   solo lo tenía body), y cualquier imagen/vídeo sin límites propios nunca
+   podrá empujar el ancho de la página. */
+img,video{max-width:100%;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 60% at 15% -10%,rgba(40,30,5,.22) 0%,transparent 60%),
+  radial-gradient(ellipse 60% 40% at 85% 110%,rgba(30,20,0,.18) 0%,transparent 55%);}
+body>*{position:relative;z-index:1;}
+h1,h2,h3,.sora{font-family:'Sora','Inter',sans-serif;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26);}
+
+@keyframes fade    {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes scaleIn {from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer {0%,100%{opacity:.4}50%{opacity:.9}}
+@keyframes toastIn {from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(28px)}}
+@keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
+
+/* ── Header ── */
+#portalHeader{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 24px;background:rgba(10,10,10,.97);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40;
+  box-shadow:0 4px 24px rgba(0,0,0,.6);
+  grid-column:1/-1;
+  /* Al ocupar las dos columnas del grid (grid-column:1/-1) sin esto, su
+     fila hereda por defecto min-width:auto — es decir, el ancho mínimo de
+     su propio contenido (logo+texto+badge+toggle+botón salir+hamburguesa
+     en una sola fila sin wrap). En pantallas angostas eso puede forzar a
+     TODO #portalApp (y por tanto la página) a ser más ancho que el
+     viewport = el desbordamiento horizontal reportado. min-width:0 anula
+     ese mínimo automático; overflow-x:hidden es la red de seguridad si
+     aun así el contenido no entra. */
+  min-width:0;overflow-x:hidden;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-icon{height:38px;width:38px;border-radius:12px;flex:0 0 auto;
+  background:linear-gradient(135deg,#2a1d00,#0a0800);
+  border:1px solid rgba(226,144,35,.45);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.45);}
+.brand-icon span{font-family:'Sora',sans-serif;font-size:18px;font-weight:800;
+  background:linear-gradient(135deg,#E29023,#E29023);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.brand-name{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--gold-2);}
+.brand-sub{font-size:9.5px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:1px;}
+#pUserBadge{font-size:12px;font-weight:500;color:var(--text-2);padding:5px 14px;
+  background:var(--glass);border:1px solid var(--border);border-radius:30px;}
+/* El logo "M" es una pieza de marca fija con acento dorado propio; en
+   Modo Verde su borde/brillo sigue el mismo acento activo (permitido:
+   "línea de acento"), sin volverse un bloque grande de color. */
+body.theme-green .brand-icon{
+  background:linear-gradient(135deg,#0a2414,#080a08);
+  border-color:rgba(31,175,99,.45);}
+body.theme-green .brand-icon span{
+  background:linear-gradient(135deg,var(--gold),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* ── Toggle "Modo Dorado / Modo Verde" ── */
+.theme-toggle-btn{display:flex;align-items:center;gap:7px;background:transparent;
+  border:none;cursor:pointer;padding:2px;font-family:inherit;}
+.theme-toggle-track{position:relative;width:42px;height:23px;border-radius:20px;
+  background:rgba(226,144,35,.12);border:1px solid rgba(226,144,35,.35);
+  transition:background .25s,border-color .25s;flex:0 0 auto;}
+.theme-toggle-btn.on .theme-toggle-track{background:rgba(0,255,102,.1);border-color:rgba(0,255,102,.4);}
+.theme-toggle-thumb{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;
+  background:var(--gold-gradient);box-shadow:0 2px 6px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;font-size:9px;
+  transition:transform .28s cubic-bezier(.4,0,.2,1),background .25s;transform:translateX(0);}
+.theme-toggle-btn.on .theme-toggle-thumb{transform:translateX(19px);
+  background:linear-gradient(135deg,#33ff88,#00ff66,#008833);}
+.theme-toggle-label{font-size:9.5px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.8px;font-weight:600;white-space:nowrap;display:none;}
+@media(min-width:640px){ .theme-toggle-label{display:inline;} }
+.btn-salir{background:transparent;border:1px solid var(--border);color:var(--muted);
+  padding:6px 13px;border-radius:var(--r-sm);cursor:pointer;font-size:12px;
+  font-family:inherit;transition:var(--t);}
+.btn-salir:hover{border-color:var(--warn);color:var(--warn);}
+/* Hamburguesa portal (móvil) */
+#portalSidebarToggle{display:none;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);color:var(--muted);
+  padding:6px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:16px;font-family:inherit;}
+/* Botón "← Volver" (solo móvil, visible cuando no estamos en Inicio) */
+#pBackBtn{display:none;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);color:var(--text-2);
+  padding:6px 12px;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;
+  font-family:inherit;align-items:center;gap:6px;white-space:nowrap;}
+#pBackBtn:hover{border-color:var(--border-hi);color:var(--white);}
+
+/* ── Layout con sidebar vertical ── */
+#portalApp{display:grid;grid-template-rows:auto 1fr;grid-template-columns:200px 1fr;min-height:100vh;overflow-x:hidden;}
+#portalHeader{grid-column:1/-1;grid-row:1;}
+
+/* ── Sidebar Nav del alumno ── */
+#portalNav{
+  grid-column:1;grid-row:2;
+  position:sticky;top:53px;height:calc(100vh - 53px);
+  overflow-y:auto;overflow-x:hidden;
+  background:rgba(10,10,10,.97);
+  border-right:1px solid var(--border);
+  padding:20px 10px;
+  display:flex;flex-direction:column;gap:4px;
+  scrollbar-width:thin;
+}
+.pnav-btn{
+  background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:10px 13px;border-radius:var(--r-sm);cursor:pointer;font-size:13px;font-weight:500;
+  transition:all .2s cubic-bezier(.4,0,.2,1);font-family:'Inter',sans-serif;
+  white-space:nowrap;text-align:left;width:100%;
+  display:flex;align-items:center;gap:9px;
+}
+.pnav-btn:hover{color:var(--text-2);background:rgba(255,255,255,.06);}
+.pnav-btn.active{
+  background:linear-gradient(135deg,rgba(226,144,35,.15),rgba(138,112,0,.1));
+  color:var(--gold-2);font-weight:600;
+  border-color:rgba(226,144,35,.32);
+}
+
+/* ── Área de contenido ── */
+#portalMain{grid-column:2;grid-row:2;display:flex;flex-direction:column;overflow-x:hidden;}
+/* Tabs vídeo encima del contenido */
+#discTabs{display:none;padding:10px 20px 0;
+  background:rgba(10,10,10,.7);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:4px;}
+#nivelPills{display:none;padding:10px 20px;
+  background:rgba(10,10,10,.6);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;}
+#portalContent{flex:1;padding:28px 24px;max-width:1060px;}
+#portalContent.wide{max-width:100%;padding:0;}
+
+/* ── Overlay para cierre sidebar móvil ── */
+#portalSidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:34;}
+#portalSidebarOverlay.open{display:block;}
+
+/* ── Overlay "Instalá la app" — se muestra solo a cuentas soloCursosExternos
+   que todavía no la instalaron (ver mostrarPromptInstalarPWA() en portal.js). ── */
+#pInstalarOverlay{display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);
+  align-items:center;justify-content:center;padding:20px;}
+#pInstalarOverlay.show{display:flex;}
+.p-instalar-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;
+  padding:26px 22px;max-width:380px;width:100%;text-align:center;}
+.p-instalar-logo{width:56px;height:56px;object-fit:contain;border-radius:12px;margin-bottom:12px;}
+.p-instalar-titulo{font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:var(--gold-2);margin-bottom:8px;}
+.p-instalar-sub{font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:18px;}
+.p-instalar-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.p-instalar-tab{flex:1;padding:8px;border-radius:8px;border:1px solid var(--card-border);
+  background:transparent;color:var(--text-2);font-size:12.5px;cursor:pointer;font-family:inherit;}
+.p-instalar-tab.activa{border-color:var(--gold);color:var(--gold-2);}
+.p-instalar-pasos{text-align:left;margin-bottom:16px;}
+.p-instalar-paso{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--text-2);
+  line-height:1.5;margin-bottom:10px;}
+.p-instalar-paso-num{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:rgba(226,144,35,.15);
+  color:var(--gold-2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.p-instalar-ahora-no{background:none;border:none;color:var(--muted);font-size:12.5px;
+  cursor:pointer;font-family:inherit;margin-top:4px;text-decoration:underline;}
+
+/* ── Responsive móvil ── */
+@media(max-width:768px){
+  #portalApp{grid-template-columns:1fr;}
+  #portalNav{
+    position:fixed;top:53px;left:0;bottom:0;width:200px;z-index:35;
+    transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:4px 0 24px rgba(0,0,0,.6);
+  }
+  #portalNav.open{transform:translateX(0);}
+  #portalMain{grid-column:1;grid-row:3;}
+  #portalSidebarToggle{display:block!important;}
+  #portalContent{padding:20px 16px;}
+  #pBackBtn.show{display:inline-flex!important;}
+}
+
+/* ── Botones ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 22px;border-radius:var(--r-sm);cursor:pointer;font-size:13px;font-weight:600;
+  transition:all .2s cubic-bezier(.4,0,.2,1);font-family:'Inter',sans-serif;
+  white-space:nowrap;border:none;
+  background:var(--gold-gradient);color:#0a0a0a;
+  box-shadow:0 4px 18px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.18);}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.btn:active{transform:translateY(0);}
+.btn.sec{background:rgba(255,255,255,.05);border:1px solid var(--border-2);color:var(--text-2);box-shadow:none;}
+.btn.sec:hover{border-color:var(--gold);color:var(--gold-2);background:var(--gold-soft);transform:translateY(-2px);}
+.btn.ok{background:linear-gradient(135deg,var(--ok),#2a8a50);color:#fff;box-shadow:0 4px 14px var(--ok-glow);}
+.btn.sm{padding:6px 14px;font-size:11.5px;border-radius:8px;}
+
+/* ── Inputs ── */
+input,select,textarea{background:rgba(255,255,255,.06);border:1px solid var(--border-2);
+  color:var(--text);padding:11px 14px;border-radius:var(--r-sm);font-size:13.5px;
+  font-family:inherit;transition:all .2s;width:100%;}
+input::placeholder,textarea::placeholder{color:var(--muted);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-soft),0 0 16px var(--gold-glow);background:rgba(226,144,35,.05);}
+select option{background:#131308;color:var(--text);}
+.pass-toggle-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;
+  display:flex;align-items:center;transition:color .2s;z-index:1;}
+.pass-toggle-btn:hover{color:var(--gold);}
+
+/* ── Cards ── */
+.card{background:var(--card-bg);
+  border:1px solid var(--card-border);border-radius:var(--r-lg);padding:22px 24px;
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);}
+.card::before{content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 50%);pointer-events:none;}
+.card:hover{border-color:var(--border-hi);transform:translateY(-2px);
+  box-shadow:0 10px 36px rgba(0,0,0,.6);}
+.card.gold-glow:hover{box-shadow:0 10px 36px rgba(0,0,0,.6);}
+.label-field{font-size:11px;color:var(--muted);display:block;margin:14px 0 5px;
+  font-weight:500;text-transform:uppercase;letter-spacing:.8px;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:30px;
+  font-size:11px;font-weight:600;}
+.badge.ok{background:var(--ok-soft);color:var(--ok);border:1px solid rgba(226,144,35,.2);}
+.badge.warn{background:var(--warn-soft);color:var(--warn);border:1px solid rgba(224,92,92,.2);}
+.badge.gold{background:var(--gold-soft);color:var(--gold-2);border:1px solid rgba(226,144,35,.25);}
+.badge.muted{background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid var(--border);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.h2{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);
+  display:flex;align-items:center;gap:8px;margin-bottom:18px;}
+.h2::before{content:'';width:3px;height:14px;border-radius:2px;
+  background:linear-gradient(var(--gold),var(--accent-deep));}
+.vacio{text-align:center;color:var(--muted);padding:48px 24px;
+  background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--r-lg);}
+
+/* ── Toasts ── */
+.portal-toast{display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:var(--r);
+  font-size:13px;font-weight:500;backdrop-filter:blur(24px);box-shadow:var(--shadow);
+  border:1px solid;animation:toastIn .3s cubic-bezier(.34,1.36,.64,1);pointer-events:all;min-width:220px;}
+.portal-toast.ok{background:rgba(226,144,35,.14);border-color:rgba(226,144,35,.28);color:var(--ok);}
+.portal-toast.warn{background:rgba(224,92,92,.14);border-color:rgba(224,92,92,.28);color:var(--warn);}
+.portal-toast.info{background:rgba(226,144,35,.14);border-color:rgba(226,144,35,.28);color:var(--gold-2);}
+
+/* ── Player (Mis Vídeos) — estilo hero STEEZY ── */
+#aulaWrap{display:flex;flex-direction:column;max-width:1040px;margin:0 auto;padding:0 0 40px;
+  background:rgba(20,20,20,.5);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border:1px solid rgba(255,255,255,.08);}
+#playerWrap{position:relative;width:100%;padding-top:56.25%;background:#000;
+  border-radius:var(--r-lg);overflow:hidden;margin:20px 24px 0;width:calc(100% - 48px);
+  box-shadow:0 12px 40px rgba(0,0,0,.7);}
+#playerWrap iframe,#playerWrap video{position:absolute;inset:0;width:100%;height:100%;border:none;}
+#videoMeta{padding:20px 24px 6px;}
+#videoTitle{font-family:'Sora',sans-serif;font-size:21px;font-weight:700;
+  letter-spacing:-.3px;color:var(--white);margin-bottom:6px;}
+#videoNotes{color:var(--text-2);font-size:13.5px;line-height:1.75;margin-top:8px;}
+#videoList{padding:0;display:flex;flex-direction:column;gap:8px;}
+.video-item{position:relative;border-radius:var(--r);padding:14px 16px;cursor:pointer;
+  background:var(--card-bg);border:1px solid var(--card-border);
+  transition:all .2s;display:flex;flex-direction:column;gap:8px;}
+.video-item:hover{border-color:var(--gold);transform:translateY(-2px);}
+.video-item.playing{border-color:var(--gold);}
+.vi-title{font-size:13px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px;}
+.vi-disc{font-size:11px;color:var(--muted);margin-top:2px;}
+.vi-done{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 6px rgba(226,144,35,.6);}
+.video-item.calent-item{border-color:var(--card-border);}
+.video-item.calent-item:hover{box-shadow:0 0 16px rgba(226,144,35,.35);}
+#eventosCarouselCard{background:var(--bg);border-color:transparent;}
+#eventosCarouselCard:hover{border-color:transparent;transform:none;}
+.video-num{flex:0 0 28px;height:28px;border-radius:8px;
+  background:var(--bg);border:1px solid var(--card-border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--muted);transition:all .2s;}
+.video-item.playing .video-num{background:var(--gold);border-color:transparent;color:#0a0a0a;}
+
+/* ── Fila de vídeo numerada (lista dentro del panel de nivel) ── */
+.video-row{position:relative;display:flex;align-items:center;gap:14px;padding:12px 16px;
+  border-radius:10px;background:var(--card-bg);border:1px solid var(--card-border);
+  cursor:pointer;transition:all .2s;overflow:hidden;}
+.video-row::after{content:'';position:absolute;top:8px;bottom:8px;right:0;width:3px;
+  border-radius:2px 0 0 2px;background:var(--gold);opacity:0;transition:opacity .2s;}
+.video-row:hover{border-color:rgba(226,144,35,.4);}
+.video-row:hover::after{opacity:1;}
+.video-row.active{border-color:var(--gold);background:rgba(226,144,35,.05);}
+/* Redondel numerado con anillo dorado — estilo "premium" (referencia:
+   reproductor de música con círculos dorados numerados). */
+.video-row-num{width:28px;height:28px;border-radius:50%;
+  background:radial-gradient(circle at 50% 32%,rgba(226,144,35,.16),rgba(0,0,0,0) 72%),var(--bg);
+  border:1.5px solid rgba(226,144,35,.4);display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--gold-2);flex:0 0 auto;transition:all .2s;}
+.video-row:hover .video-row-num{border-color:var(--gold);box-shadow:0 0 10px rgba(226,144,35,.35);}
+.video-row.visto .video-row-num{border-color:var(--gold);}
+.video-row.active .video-row-num{background:var(--gold);border-color:var(--gold);color:#0a0a0a;
+  box-shadow:0 0 14px rgba(226,144,35,.55);}
+.video-row-title{font-size:13px;font-weight:600;color:var(--white);}
+.video-row-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.video-row-arrow{color:var(--gold);font-size:12px;flex:0 0 auto;opacity:0;transition:opacity .2s;}
+.video-row.active .video-row-arrow{opacity:1;}
+.video-row .vi-done{top:50%;right:14px;transform:translateY(-50%);
+  box-shadow:0 0 8px rgba(226,144,35,.7);}
+
+/* ── Tarjeta pequeña con efecto vidrio/blur (paneles flotantes) ── */
+.glass-card{background:rgba(255,255,255,.045);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.09);border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.35);}
+
+/* ── Tarjetas mini de clases — lista de "Clase 1, Clase 2…" centrada y
+   compacta debajo del vídeo (distinta de .video-row, que se sigue usando
+   para calentamientos y bonus) ── */
+.clases-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;}
+.clase-mini{position:relative;width:72px;padding:8px 4px 7px;border-radius:10px;
+  background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  transition:all .2s;text-align:center;}
+.clase-mini:hover{border-color:var(--gold);transform:translateY(-2px);}
+.clase-mini.active{border-color:var(--gold);background:rgba(226,144,35,.06);}
+.clase-mini-play{width:20px;height:20px;border-radius:50%;background:var(--bg);
+  border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;
+  font-size:8.5px;color:var(--muted);transition:all .2s;flex:0 0 auto;}
+.clase-mini.active .clase-mini-play{background:var(--gold);border-color:transparent;color:#0a0a0a;}
+.clase-mini-label{font-size:9.5px;font-weight:700;color:var(--white);white-space:nowrap;}
+.clase-mini .vi-done{top:3px;right:3px;width:6px;height:6px;}
+
+/* ── Barra de estado interactiva bajo el vídeo ("Bachata · Nivel 1 — Clase 1") ── */
+.video-status-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:10px 16px;margin:0;flex-wrap:wrap;
+  color:var(--text-2);font-size:13px;font-weight:600;text-align:left;
+  background:transparent;border-top:2px solid transparent;
+  transition:background .2s,border-color .2s;}
+.video-status-bar:hover{background:rgba(226,144,35,.05);border-top-color:var(--gold);}
+.video-status-bar .clase-actual{color:var(--gold);font-weight:700;}
+
+/* ── Separador de sección centrado, con líneas a los lados ── */
+.section-divider{display:flex;align-items:center;gap:16px;margin:8px 0 20px;}
+.section-divider .line{flex:1;height:1px;background:var(--card-border);}
+.section-divider .label{font-size:10.5px;letter-spacing:3px;color:var(--muted);
+  font-weight:700;white-space:nowrap;text-transform:uppercase;}
+@media(max-width:600px){
+  #aulaWrap{padding:0 0 24px;}
+  #playerWrap{margin:14px 14px 0;width:calc(100% - 28px);}
+  #videoListRow{flex-direction:column;padding:14px;}
+}
+
+/* ── "Mi Playlist" — estructura vertical: encabezado (título+logo) →
+   pestañas (Favoritos | desplegable Playlists) → panel único de lista con
+   scroll propio → reproductor fijo justo debajo, dentro de la tarjeta. ── */
+.mp-shell{background:var(--bg);border-color:transparent;}
+.mp-shell:hover{border-color:transparent;transform:none;}
+.mp-header-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:22px 26px 16px;border-bottom:none;}
+.mp-header-desc{font-size:12px;color:var(--muted);margin:0;}
+.mp-header-logo{display:flex;align-items:center;gap:9px;flex:0 0 auto;}
+.mp-header-logo .mp-logo-m{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:var(--gold-2);
+  line-height:1;text-shadow:0 0 10px rgba(226,144,35,.3);}
+.mp-logo-text{display:flex;flex-direction:column;line-height:1.25;}
+.mp-logo-name{font-size:11px;font-weight:700;letter-spacing:2.5px;color:var(--white);}
+.mp-logo-sub{font-size:7.5px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;}
+
+.mp-tabs{display:flex;gap:10px;padding:14px 26px;border-bottom:none;}
+.mp-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--card-border);color:var(--text-2);font-size:12.5px;font-weight:600;
+  font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;-webkit-appearance:none;
+  text-align:center;text-align-last:center;}
+.mp-tab:hover{background:var(--surface-2);color:var(--white);}
+.mp-tab.active{background:rgba(226,144,35,.12);border-color:var(--border-hi);color:var(--gold);}
+
+.mp-list-header{padding:12px 26px 0;font-size:11px;color:var(--muted);}
+.mp-list-panel{padding:10px 26px 16px;flex:1;min-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.mp-list-panel .video-row{position:relative;background:transparent;border-color:transparent;}
+.mp-list-panel .video-row:hover{border-color:rgba(226,144,35,.4);}
+.mp-list-panel .video-row.active{border-color:var(--gold);background:rgba(226,144,35,.05);}
+
+.video-row-heart{font-size:13px;color:var(--muted);cursor:pointer;flex:0 0 auto;padding:2px 5px;
+  transition:color .2s,transform .15s;}
+.video-row-heart:hover{transform:scale(1.18);color:var(--gold-2);}
+.video-row-heart.fav{color:var(--gold);}
+.video-row-menu{font-size:14px;color:var(--muted);cursor:pointer;flex:0 0 auto;padding:2px 6px;transition:color .15s;}
+.video-row-menu:hover{color:var(--white);}
+.mp-row-menu-pop{position:absolute;right:8px;top:100%;margin-top:4px;background:var(--card-bg);
+  border:1px solid var(--card-border);border-radius:8px;box-shadow:0 8px 22px rgba(0,0,0,.45);z-index:5;overflow:hidden;}
+.mp-row-menu-pop button{display:block;width:100%;padding:9px 16px;background:none;border:none;color:var(--text-2);
+  font-size:11.5px;text-align:left;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.mp-row-menu-pop button:hover{background:rgba(226,144,35,.1);color:var(--gold-2);}
+
+/* Reproductor SIEMPRE visible, en 2 filas, para que nunca se desborde ni
+   se superpongan los controles con card angostas (fila 1 = info+progreso,
+   fila 2 = transporte + favorito + volumen). */
+.mp-player{display:flex;flex-direction:column;gap:10px;padding:14px 26px 18px;
+  border-top:none;background:transparent;}
+.mp-bb-row1{display:flex;align-items:center;gap:14px;min-width:0;}
+.mp-bb-row2{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+.mp-bb-transport{display:flex;align-items:center;gap:14px;flex:0 0 auto;}
+.mp-bb-extras{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+.mp-bb-btn{background:none;border:none;color:var(--text-2);cursor:pointer;font-size:16px;padding:4px;flex:0 0 auto;}
+.mp-bb-btn:hover{color:var(--white);}
+.mp-bb-play{background:var(--gold-gradient);color:#0a0a0a;border:none;width:36px;height:36px;border-radius:50%;
+  cursor:pointer;font-size:14px;box-shadow:0 0 14px rgba(226,144,35,.4);flex:0 0 auto;}
+.mp-bb-info{flex:0 1 180px;min-width:0;}
+.mp-bb-title{font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-bb-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.mp-bb-seekwrap{flex:1;min-width:0;display:flex;align-items:center;gap:8px;}
+.mp-bb-time{font-size:9.5px;color:var(--muted);flex:0 0 auto;min-width:26px;}
+.mp-bb-vol-icon{font-size:11px;color:var(--muted);flex:0 0 auto;}
+.mp-bb-heart{font-size:15px;color:var(--muted);cursor:pointer;flex:0 0 auto;transition:color .2s,transform .15s;}
+.mp-bb-heart:hover{transform:scale(1.15);}
+.mp-bb-heart.fav{color:var(--gold);}
+/* Sliders delgados y consistentes entre navegadores (accent-color solo no
+   alcanza en todos los Windows/Chrome — se define track/thumb a mano). */
+.mp-bb-seek,.mp-bb-vol{-webkit-appearance:none;appearance:none;height:4px;border-radius:999px;
+  background:var(--surface);outline:none;cursor:pointer;accent-color:var(--gold);}
+.mp-bb-seek{flex:1;min-width:60px;}
+.mp-bb-vol{width:80px;flex:0 0 auto;}
+.mp-bb-seek::-webkit-slider-runnable-track,.mp-bb-vol::-webkit-slider-runnable-track{
+  height:4px;border-radius:999px;background:var(--surface);}
+.mp-bb-seek::-webkit-slider-thumb,.mp-bb-vol::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--gold);margin-top:-4px;box-shadow:0 0 6px rgba(226,144,35,.6);}
+.mp-bb-seek::-moz-range-track,.mp-bb-vol::-moz-range-track{height:4px;border-radius:999px;background:var(--surface);}
+.mp-bb-seek::-moz-range-thumb,.mp-bb-vol::-moz-range-thumb{
+  width:12px;height:12px;border-radius:50%;background:var(--gold);border:none;box-shadow:0 0 6px rgba(226,144,35,.6);}
+@media(max-width:600px){
+  .mp-header-row{padding:18px 16px 14px;}
+  .mp-tabs{padding:12px 16px;}
+  .mp-list-header{padding:10px 16px 0;}
+  .mp-list-panel{padding:8px 16px 14px;min-height:300px;}
+  .mp-player{padding:12px 16px 16px;gap:8px;}
+  .mp-bb-vol{display:none;}
+  .mp-bb-vol-icon{display:none;}
+  .mp-bb-sub{display:none;}
+  .mp-logo-sub{display:none;}
+}
+
+/* ── Tarjeta "Racha" — fueguito global histórico (izquierda) + barra
+   principal de progreso del bloque activo (mecánica 2x2) y avance del
+   nivel (derecha). La barra semanal por días fue retirada. ── */
+.racha-card{display:flex;align-items:stretch;gap:20px;padding:20px 22px;flex-wrap:wrap;}
+.racha-fuego-box{flex:0 0 132px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;background:var(--surface);border:1px solid var(--card-border);border-radius:var(--r-lg);
+  padding:18px 10px;text-align:center;}
+.racha-fuego-icon{font-size:38px;line-height:1;
+  filter:drop-shadow(0 0 14px rgba(226,144,35,.55)) drop-shadow(0 0 28px rgba(226,144,35,.3));}
+.racha-fuego-num{font-size:19px;font-weight:800;color:var(--white);white-space:nowrap;}
+.racha-fuego-label{font-size:10.5px;color:var(--muted);line-height:1.3;}
+.racha-desbloqueo{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:10px;}
+.racha-progreso-texto{font-size:13.5px;color:var(--text-2);}
+.racha-progreso-texto strong{font-size:22px;color:var(--white);margin-right:4px;}
+.racha-progreso-destacado{color:var(--white);font-weight:700;}
+.racha-bar-track{height:11px;border-radius:999px;background:var(--surface);border:1px solid var(--card-border);overflow:hidden;}
+.racha-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#FFD573,var(--gold));
+  box-shadow:0 0 12px rgba(226,144,35,.55);transition:width .4s ease;}
+.racha-nivel-texto{font-size:11px;color:var(--muted);}
+/* Fila de redondeles: cada uno representa un par de vídeos de clase
+   desbloqueados dentro del nivel activo (mecánica 2x2). Reemplaza a la
+   barra de progreso dentro de la tarjeta Racha. Agrupados por disciplina
+   con una rayita divisoria + nombre debajo de cada grupo. */
+.racha-videos-grupos{display:flex;align-items:stretch;gap:16px;flex-wrap:wrap;}
+.racha-videos-grupo{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.racha-videos-grupo-label{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.2px;color:var(--muted);}
+.racha-videos-divisor{width:1px;align-self:stretch;background:var(--card-border);margin:0 2px;min-height:50px;}
+.racha-videos-fila{display:flex;flex-wrap:wrap;gap:12px;}
+.racha-video-circulo{flex:0 0 auto;width:50px;height:50px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--card-border);
+  color:var(--muted);font-size:20px;font-weight:800;transition:background .3s ease,box-shadow .3s ease,
+  color .3s ease,border-color .3s ease,transform .3s ease;}
+.racha-video-circulo.encendido{background:radial-gradient(circle at 50% 32%,#FFD573,var(--gold));
+  border-color:var(--gold);color:#1a1204;transform:scale(1.06);
+  box-shadow:0 0 10px rgba(226,144,35,.6),0 0 20px rgba(226,144,35,.32);}
+@media(max-width:600px){.racha-video-circulo{width:38px;height:38px;font-size:16px;}.racha-videos-divisor{min-height:38px;}}
+@media(max-width:600px){
+  .racha-card{flex-direction:column;}
+  .racha-fuego-box{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:14px;padding:14px 16px;}
+  .racha-fuego-icon{font-size:28px;}
+}
+
+/* ── Tarjeta "Calendario" — grid mensual (izquierda) + leyenda de categorías
+   (derecha). Clases=dorado (privado), Talleres=fucsia, Eventos=cian (ambos
+   públicos). El día de hoy va con el círculo relleno, no solo el borde. ── */
+.mescal-card{display:flex;flex-direction:column;gap:10px;max-width:440px;padding:16px 18px;}
+.cal-main{flex:1;min-width:0;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.cal-mes-selector{position:relative;}
+.cal-mes-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--card-border);
+  color:var(--white);padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;text-transform:capitalize;transition:all .15s;}
+.cal-mes-pill:hover{border-color:var(--border-hi);}
+.cal-mes-chevron{font-size:9px;color:var(--muted);}
+.cal-mes-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:20;max-height:200px;overflow-y:auto;
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--r-sm);padding:5px;
+  box-shadow:0 12px 32px rgba(0,0,0,.6);min-width:140px;}
+.cal-mes-opcion{padding:6px 10px;border-radius:6px;font-size:11px;color:var(--text-2);cursor:pointer;text-transform:capitalize;}
+.cal-mes-opcion:hover{background:var(--surface);color:var(--white);}
+.cal-mes-opcion.activa{background:rgba(226,144,35,.12);color:var(--gold);font-weight:700;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px 4px;}
+.cal-dow{text-align:center;font-size:8px;color:var(--white);font-weight:700;padding-bottom:3px;}
+.cal-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:30px;}
+.cal-cell-vacia{visibility:hidden;}
+.cal-day{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;color:var(--text-2);border:1px solid transparent;background:transparent;
+  transition:all .15s;}
+.cal-day-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px rgba(226,144,35,.35);}
+.cal-day-magenta{border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 5px rgba(224,36,195,.35);}
+.cal-day-cyan{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 5px rgba(16,194,196,.35);}
+.cal-day-hoy{color:#0a0a0a;border-color:transparent;font-weight:800;}
+.cal-day-hoy-gold{background:var(--gold);box-shadow:0 0 8px rgba(226,144,35,.55);}
+.cal-day-hoy-magenta{background:var(--magenta);box-shadow:0 0 8px rgba(224,36,195,.55);}
+.cal-day-hoy-cyan{background:var(--cyan);box-shadow:0 0 8px rgba(16,194,196,.55);}
+.cal-day-dots{display:flex;gap:2px;height:3px;}
+.cal-dot{width:3px;height:3px;border-radius:50%;}
+.cal-dot-gold{background:var(--gold);}
+.cal-dot-magenta{background:var(--magenta);}
+.cal-dot-cyan{background:var(--cyan);}
+.cal-divider{width:100%;height:1px;align-self:stretch;background:var(--card-border);flex:0 0 auto;margin:2px 0;}
+.cal-legend{flex:0 0 auto;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 14px;justify-content:center;padding-top:0;}
+.cal-legend-item{display:flex;align-items:center;gap:5px;}
+.cal-legend-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;border:1px solid;flex:0 0 auto;}
+.cal-legend-gold{border-color:var(--gold);color:var(--gold);box-shadow:0 0 5px rgba(226,144,35,.3);}
+.cal-legend-magenta{border-color:var(--magenta);color:var(--magenta);box-shadow:0 0 5px rgba(224,36,195,.3);}
+.cal-legend-cyan{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 5px rgba(16,194,196,.3);}
+.cal-legend-label{font-size:11.5px;font-weight:700;padding-bottom:1px;border-bottom:1.5px solid currentColor;display:inline-block;}
+.cal-legend-label-gold{color:var(--gold);}
+.cal-legend-label-magenta{color:var(--magenta);}
+.cal-legend-label-cyan{color:var(--cyan);}
+@media(max-width:640px){
+  .mescal-card{max-width:none;}
+}
+
+/* ── Fila que junta Calendario + Racha en escritorio, para que la Racha
+   ocupe el espacio libre a la derecha del calendario (ya cuadrado/chico).
+   En móvil se apilan una debajo de la otra, como antes. ── */
+.racha-cal-row{display:flex;gap:20px;align-items:stretch;margin-bottom:28px;}
+.racha-cal-row .mescal-card{flex:0 0 auto;margin-bottom:0;}
+.racha-cal-row .racha-card{flex:1;min-width:280px;margin-bottom:0;}
+@media(max-width:900px){
+  .racha-cal-row{flex-direction:column;}
+}
+/* ── Solo escritorio: el Calendario se alarga hacia la derecha para quedar
+   cuadrado (la Racha se encoge en consecuencia, ya que ocupa flex:1), y se
+   agranda el texto de la tarjeta Racha y de la tarjeta "Buenos días". ── */
+@media(min-width:901px){
+  .racha-cal-row .mescal-card{flex:0 0 320px;width:320px;}
+
+  .racha-fuego-icon{font-size:46px;}
+  .racha-fuego-num{font-size:23px;}
+  .racha-fuego-label{font-size:12px;}
+  .racha-progreso-texto{font-size:15px;}
+  .racha-progreso-texto strong{font-size:25px;}
+  .racha-nivel-texto{font-size:12.5px;}
+
+  .bienvenida-hero h1{font-size:22px!important;}
+  .bienvenida-plan{font-size:11px!important;padding:5px 14px!important;}
+  .stat-box{min-width:62px!important;padding:10px 12px!important;}
+  .stat-num{font-size:17px!important;}
+  .stat-lbl{font-size:9px!important;}
+}
+
+/* ── Música + Eventos en paralelo ──
+   min-height:0 en los items del grid es necesario para que "Mi Playlist"
+   (que tiene una lista interna con scroll propio, .mp-list-panel con
+   overflow-y:auto) respete la altura que le da align-items:stretch en vez
+   de crecer para mostrar TODA su lista sin scroll. Por defecto, un item de
+   grid/flex tiene min-height:auto, que equivale a "no encogerte por debajo
+   del contenido natural" — con muchas canciones/clases reales (más de las
+   que había en las pruebas con pocos datos), eso hacía que la tarjeta
+   creciera muchísimo más que "Próximos Eventos" en vez de scrollear por
+   dentro. Con min-height:0 se permite que .mp-list-panel realmente
+   scrollee y ambas tarjetas queden a la misma altura sin importar cuánto
+   contenido real tenga la playlist. ── */
+.portal-paralelo{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:32px;}
+.portal-paralelo>.card{margin-bottom:0;display:flex;flex-direction:column;min-height:0;}
+@media(max-width:900px){
+  .portal-paralelo{grid-template-columns:1fr;}
+}
+
+/* ── "Próximos Eventos y Talleres" — carrusel tipo "coverflow": la
+   tarjeta central va a escala/opacidad 100% y las laterales se desplazan,
+   encogen y atenúan según su distancia al centro (ver evAplicarTransform
+   en portal.js). Arrastrable con el dedo/ratón + flechas para escritorio.
+   Al tocar una tarjeta se abre el lightbox (ver más abajo) a tamaño
+   completo. ── */
+.ev-nav-btn{background:var(--surface);border:1px solid var(--card-border);color:var(--text-2);
+  width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit;}
+.ev-nav-btn:hover{background:var(--surface-2);color:var(--white);border-color:var(--border-hi);}
+.ev-nav-btn:disabled{opacity:.35;cursor:default;}
+
+.ev-coverflow{position:relative;width:100%;height:750px;overflow:hidden;
+  touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+.ev-coverflow:active{cursor:grabbing;}
+/* Ancho proporcional al contenedor (no fijo en px): así se ve igual de
+   grande tanto en un panel angosto (vista previa) como en una pantalla
+   ancha (servidor real) — antes, un ancho fijo se veía bien en uno y
+   chico en el otro. evActualizarCardStep() en el JS lee el ancho ya
+   renderizado para que la separación entre tarjetas también escale, y
+   ajusta el alto real de #evCoverflow (el 750px de arriba es solo un
+   valor de respaldo para el primer pintado, antes de medir). */
+.ev-card{position:absolute;top:50%;left:50%;width:clamp(220px, 62%, 520px);cursor:pointer;
+  border-radius:var(--r-lg);overflow:hidden;background:var(--surface);
+  border:1px solid var(--card-border);will-change:transform,opacity;
+  touch-action:none;-webkit-user-drag:none;}
+.ev-card:hover{border-color:var(--border-hi);}
+.ev-card-media{position:relative;width:100%;aspect-ratio:3/4;background:#000;overflow:hidden;pointer-events:none;}
+/* Las tarjetas de Cursos (Reel publicitario) usan portadas verticales
+   2:3 (p.ej. 1200x1800px) en vez del 3:4 de Eventos — se sobreescribe
+   solo para .cr-card sin tocar el carrusel de Eventos. */
+.cr-card .ev-card-media{aspect-ratio:2/3;}
+.ev-card-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  pointer-events:none;}
+.ev-card-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.22);}
+.ev-card-play::before{content:'▶';width:38px;height:38px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1.5px solid rgba(255,255,255,.5);color:#fff;
+  font-size:13px;display:flex;align-items:center;justify-content:center;
+  padding-left:3px;backdrop-filter:blur(3px);}
+.ev-card-info{padding:10px 12px 12px;pointer-events:none;}
+.ev-card-titulo{font-size:12.5px;font-weight:700;color:var(--white);margin-bottom:3px;
+  line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ev-card-fecha{font-size:10.5px;color:var(--muted);}
+
+/* ── Lightbox de Eventos: vista ampliada a tamaño completo ── */
+.ev-lightbox-overlay{position:fixed;inset:0;z-index:1200;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  animation:fadeOverlay .2s ease both;}
+.ev-lightbox-card{position:relative;width:100%;max-width:480px;max-height:92vh;
+  display:flex;flex-direction:column;background:var(--card-bg,#161616);
+  border:1px solid var(--card-border);border-radius:var(--r-xl);overflow:hidden;
+  animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.ev-lightbox-media{position:relative;width:100%;aspect-ratio:4/5;background:#000;flex:0 0 auto;}
+.ev-lightbox-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
+.ev-lightbox-media iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.ev-lightbox-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:18px;
+  line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+.ev-lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;
+  border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;}
+.ev-lightbox-nav.prev{left:10px;}
+.ev-lightbox-nav.next{right:10px;}
+.ev-lightbox-nav:hover{background:rgba(0,0,0,.8);border-color:var(--border-hi);}
+.ev-lightbox-info{padding:16px 20px 20px;overflow-y:auto;}
+.ev-lightbox-titulo{font-family:'Sora',sans-serif;font-size:16.5px;font-weight:700;color:#fff;margin-bottom:5px;}
+.ev-lightbox-fecha{font-size:12px;color:var(--gold-2);margin-bottom:8px;}
+.ev-lightbox-desc{font-size:12.5px;color:var(--text-2);line-height:1.6;}
+/* Móvil: ancho fijo confirmado — no tocar (ver historial de cambios). */
+@media(max-width:480px){ .ev-card{width:190px;} .ev-coverflow{height:360px;} }
+
+/* ── Nivel pills (vídeos) ── */
+#discTabs{display:flex;gap:4px;padding:12px 24px 0;
+  background:rgba(10,10,10,.7);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.disc-tab{background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:8px 18px;border-radius:var(--r-sm) var(--r-sm) 0 0;cursor:pointer;font-size:13px;
+  font-weight:500;transition:var(--t);font-family:'Inter',sans-serif;position:relative;}
+.disc-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;
+  background:transparent;transition:var(--t);}
+.disc-tab:hover{color:var(--text-2);}
+.disc-tab.active{color:var(--gold-2);font-weight:600;}
+.disc-tab.active::after{background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+#nivelPills{display:flex;gap:8px;padding:12px 24px;
+  background:rgba(10,10,10,.6);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.nivel-pill{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);
+  padding:6px 16px;border-radius:30px;cursor:pointer;font-size:12.5px;font-weight:500;transition:var(--t);}
+.nivel-pill:hover:not(.locked){border-color:var(--gold);color:var(--gold-2);background:var(--gold-soft);}
+.nivel-pill.active{background:rgba(226,144,35,.12);
+  border-color:var(--gold);color:var(--gold);font-weight:600;}
+.nivel-pill.locked{opacity:.3;cursor:not-allowed;}
+
+@media(max-width:700px){
+  #aulaWrap{grid-template-columns:1fr;grid-template-rows:auto 260px;height:auto;}
+  #colPlayer{border-right:none;border-bottom:1px solid var(--card-border);}
+  .g2{grid-template-columns:1fr;}
+}
+
+/* ── Login overlay ── */
+#loginOverlay{display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;
+  padding:24px;background:radial-gradient(ellipse 120% 100% at 50% -20%,#1a1200 0%,#0A0A0A 65%);}
+
+/* ── Vista Inicio (dashboard alumno) ── */
+#inicioWrap{padding:32px 28px;max-width:1100px;margin:0 auto;}
+.bienvenida-hero{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);border-radius:var(--r-xl);
+  padding:32px 36px;margin-bottom:28px;position:relative;overflow:hidden;
+}
+.bienvenida-hero h1{
+  font-family:'Sora',sans-serif;font-size:15px;font-weight:700;
+  color:var(--white);letter-spacing:-.2px;margin-bottom:6px;
+}
+.bienvenida-hero p{color:var(--text-2);font-size:14px;line-height:1.6;}
+.bienvenida-plan{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:30px;font-size:8.5px;font-weight:600;
+  background:rgba(226,144,35,.1);border:1px solid rgba(226,144,35,.25);
+  color:var(--gold);margin-top:16px;letter-spacing:.2px;
+}
+.hero-avatar{width:72px;height:72px;border-radius:50%;flex:0 0 auto;overflow:hidden;
+  border:2px solid var(--card-border);background:var(--bg);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .2s;}
+.hero-avatar:hover{border-color:var(--gold);}
+.hero-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.hero-avatar-xl{width:192px;height:192px;border-width:3px;}
+
+/* ── "Invita y gana" — tarjeta dorada premium, arriba de todo el dashboard
+   para que llame la atención de inmediato (justo debajo del saludo). ── */
+.ref-hero-card{
+  border-color:var(--gold);
+  background:linear-gradient(135deg,rgba(226,144,35,.12) 0%,rgba(138,112,0,.05) 55%,transparent 100%);
+  box-shadow:0 0 0 1px rgba(226,144,35,.15),0 0 28px rgba(226,144,35,.16);
+}
+.ref-hero-card:hover{border-color:var(--gold);transform:none;}
+.ref-hero-title{
+  font-family:'Sora',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.2px;
+  color:var(--gold-2);text-shadow:0 0 14px rgba(226,144,35,.35);margin-bottom:6px;
+}
+.ref-hero-sub{color:var(--text-2);font-size:13px;line-height:1.6;margin:0 0 16px;}
+.ref-discount-box{background:rgba(255,255,255,.04);border:1px solid rgba(226,144,35,.12);
+  border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.ref-discount-box.ref-discount-active{background:radial-gradient(circle at 50% 15%,rgba(226,144,35,.22),rgba(226,144,35,.04) 70%);
+  border-color:var(--gold);box-shadow:0 0 0 1px rgba(226,144,35,.25),0 0 24px rgba(226,144,35,.35);
+  padding:10px;}
+.ref-discount-img{width:100%;max-width:170px;height:auto;display:block;
+  filter:drop-shadow(0 0 14px rgba(226,144,35,.4));}
+.ref-discount-num{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;color:var(--muted);}
+.ref-discount-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.ref-discount-label-active{color:var(--gold-2);font-weight:700;margin-top:6px;}
+@media(max-width:600px){
+  .ref-hero-title{font-size:16px;}
+  .ref-discount-img{max-width:120px;}
+}
+
+.inicio-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+.inicio-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px;}
+
+.acceso-card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);border-radius:var(--r-lg);padding:24px 22px;
+  cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;
+  text-decoration:none;color:inherit;
+}
+.acceso-card:hover{
+  border-color:var(--gold);transform:translateY(-3px);
+  box-shadow:0 10px 32px rgba(0,0,0,.55);
+}
+.acceso-card:active{transform:translateY(-1px);}
+.acceso-icon{font-size:30px;line-height:1;}
+.acceso-title{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--white);}
+.acceso-desc{font-size:12.5px;color:var(--muted);line-height:1.5;}
+.acceso-card .badge{align-self:flex-start;margin-top:4px;}
+
+.semana-card{background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px;}
+.semana-hoy{border-color:var(--gold)!important;}
+.semana-dia-label{font-size:9.5px;text-transform:uppercase;letter-spacing:1.8px;
+  color:var(--muted);margin-bottom:10px;font-weight:600;}
+.semana-dia-label.hoy{color:var(--gold-2);}
+.clase-chip-mini{
+  background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:8px;padding:8px 10px;margin-bottom:6px;
+  border-left-width:3px!important;border-left-color:var(--gold)!important;
+}
+.clase-chip-mini .cc-hora{font-size:10.5px;color:var(--gold-2);font-weight:700;}
+.clase-chip-mini .cc-nom{font-size:12px;font-weight:600;margin-top:2px;}
+.clase-chip-mini .cc-est{font-size:10.5px;color:var(--muted);}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+.stat-box{background:var(--card-bg);border:1px solid var(--card-border);
+  border-radius:var(--r-sm);padding:6px 8px;text-align:center;}
+.stat-num{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--gold-2);}
+.stat-lbl{font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
+
+@media(max-width:640px){
+  .inicio-grid,.inicio-grid-3{grid-template-columns:1fr;}
+  #inicioWrap{padding:20px 16px;}
+  .bienvenida-hero{padding:20px 18px;}
+  .bienvenida-hero h1{font-size:14px;}
+  .hero-avatar-xl{width:152px;height:152px;}
+}
+
+/* ── Animaciones de entrada para tarjetas ── */
+@keyframes cardEntrada{
+  from{opacity:0;transform:translateY(18px) scale(.97);}
+  to{opacity:1;transform:none;}
+}
+@keyframes heroEntrada{
+  from{opacity:0;transform:translateY(-10px);}
+  to{opacity:1;transform:none;}
+}
+@keyframes statEntrada{
+  from{opacity:0;transform:scale(.92);}
+  to{opacity:1;transform:scale(1);}
+}
+.bienvenida-hero{animation:heroEntrada .45s cubic-bezier(.34,1.2,.64,1) both;}
+.acceso-card{animation:cardEntrada .4s cubic-bezier(.34,1.1,.64,1) both;}
+.acceso-card:nth-child(1){animation-delay:.05s;}
+.acceso-card:nth-child(2){animation-delay:.1s;}
+.acceso-card:nth-child(3){animation-delay:.15s;}
+.stat-box{animation:statEntrada .35s cubic-bezier(.34,1.1,.64,1) both;}
+.stat-box:nth-child(1){animation-delay:.02s;}
+.stat-box:nth-child(2){animation-delay:.06s;}
+.stat-box:nth-child(3){animation-delay:.10s;}
+.stat-box:nth-child(4){animation-delay:.14s;}
+.semana-card{animation:cardEntrada .38s cubic-bezier(.34,1.1,.64,1) both;}
+.semana-card:nth-child(1){animation-delay:.08s;}
+.semana-card:nth-child(2){animation-delay:.14s;}
+
+/* ── Efecto ripple en botones del portal ── */
+.btn{position:relative;overflow:hidden;}
+.btn::before{
+  content:'';position:absolute;top:50%;left:50%;
+  width:0;height:0;border-radius:50%;
+  background:rgba(255,255,255,.15);
+  transform:translate(-50%,-50%);
+  transition:width .4s,height .4s,opacity .4s;
+  opacity:0;
+}
+.btn:active::before{width:200px;height:200px;opacity:0;}
+
+/* ── Modal explicativo de desbloqueo (Rachas.png) — aparece al completar
+   el 1er vídeo de cada par de la mecánica 2x2 ── */
+.desbloqueo-modal-overlay{position:fixed;inset:0;z-index:300;display:flex;
+  align-items:flex-start;justify-content:center;padding:48px 24px 24px;overflow-y:auto;
+  background:rgba(3,3,3,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  animation:fadeOverlay .25s ease both;}
+.desbloqueo-modal-card{position:relative;width:100%;max-width:560px;
+  background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--r-xl);
+  padding:20px 20px 22px;box-shadow:0 24px 64px rgba(0,0,0,.65);
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.desbloqueo-modal-close{position:absolute;top:12px;right:12px;z-index:2;
+  width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.16);
+  background:rgba(0,0,0,.5);color:var(--white);font-size:15px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--t);}
+.desbloqueo-modal-close:hover{background:rgba(255,255,255,.12);border-color:var(--border-hi);}
+.desbloqueo-modal-img{width:100%;border-radius:var(--r-lg);display:block;cursor:pointer;}
+.desbloqueo-modal-actions{width:100%;}
+.desbloqueo-modal-actions .btn{width:100%;}
+@media(max-width:480px){
+  .desbloqueo-modal-card{padding:16px 16px 18px;max-width:100%;}
+}
+
+.pago-cuota-confirmar-btn{margin-top:8px;width:100%;padding:12px 16px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);
+  color:#ffffff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .18s;}
+.pago-cuota-confirmar-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.32);}
+
+/* ── Modal "Pagar cuota / Renovación" ── */
+.pago-cuota-overlay{position:fixed;inset:0;z-index:950;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:fadeOverlay .2s ease both;}
+.pago-cuota-card{position:relative;width:100%;max-width:380px;
+  background:#1a1a1a;border:1px solid rgba(255,255,255,.14);border-radius:20px;
+  padding:30px 24px 24px;box-shadow:0 24px 64px rgba(0,0,0,.7);
+  text-align:center;animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.pago-cuota-close{position:absolute;top:10px;right:10px;width:30px;height:30px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.4);
+  color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;}
+.pago-cuota-titulo{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:#fff;margin:0 0 6px;}
+.pago-cuota-desc{font-size:12.5px;color:#aaa;line-height:1.5;margin:0 0 16px;}
+.pago-cuota-metodos{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:6px;}
+.pago-cuota-metodo{padding:12px;border-radius:10px;cursor:pointer;
+  border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);
+  color:#e6e6e6;transition:all .18s;}
+.pago-cuota-metodo.sel{border-color:#E29023;background:rgba(226,144,35,.12);color:#fff;}
+
+/* ── Cursos Exclusivos (portal alumno) ── */
+.cx-page{background:#050505;min-height:100%;padding:28px 20px 60px;}
+.cx-hero{display:flex;align-items:center;justify-content:space-between;gap:24px;
+  margin-bottom:22px;padding-top:6px;}
+.cx-hero-text{text-align:left;}
+.cx-titulo{font-family:'Sora',sans-serif;font-size:30px;font-weight:800;color:#fff;letter-spacing:-.3px;}
+.cx-subtitulo{font-style:italic;color:#D4A359;font-size:14.5px;margin-top:6px;}
+.cx-hero-deco{flex:0 0 auto;width:720px;height:283px;border-radius:16px;overflow:hidden;
+  background:#0c0c0c;}
+.cx-hero-deco img{display:block;width:100%;height:100%;object-fit:cover;}
+.cx-pills{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-bottom:26px;}
+.cx-pill{padding:9px 20px;border-radius:999px;border:1px solid rgba(212,163,89,.4);
+  background:transparent;color:#c9c9c9;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:all .18s;font-family:inherit;}
+.cx-pill:hover{border-color:#D4A359;color:#D4A359;}
+.cx-pill.active{background:rgba(212,163,89,.14);border-color:#D4A359;color:#D4A359;
+  box-shadow:0 0 0 3px rgba(212,163,89,.14),0 0 14px rgba(212,163,89,.35);}
+.cx-acc{max-width:1080px;margin:0 auto 16px;border:1px solid rgba(212,163,89,.3);
+  border-radius:16px;overflow:hidden;background:#0a0a0a;}
+.cx-acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;
+  cursor:pointer;user-select:none;border-bottom:1px solid transparent;}
+.cx-acc.open .cx-acc-head{border-bottom-color:rgba(212,163,89,.25);}
+.cx-acc-head-title{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff;
+  display:flex;align-items:center;gap:10px;letter-spacing:.5px;text-transform:uppercase;}
+.cx-acc-count{font-size:11px;color:#707070;font-weight:500;text-transform:none;letter-spacing:0;}
+.cx-acc-chevron{color:#D4A359;transition:transform .25s;font-size:13px;}
+.cx-acc.open .cx-acc-chevron{transform:rotate(180deg);}
+.cx-acc-body-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease;}
+.cx-acc.open .cx-acc-body-wrap{grid-template-rows:1fr;}
+.cx-acc-body{overflow:hidden;min-height:0;}
+.cx-sub-titulo{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:#707070;
+  margin:14px 22px 8px;font-weight:700;}
+.cx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;
+  padding:2px 22px 20px;}
+.cx-card{position:relative;border-radius:12px;overflow:hidden;
+  border:1px solid rgba(212,163,89,.45);background:#111;cursor:pointer;aspect-ratio:2/3;
+  transition:transform .18s,box-shadow .18s;}
+.cx-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(212,163,89,.2);}
+.cx-card-media{position:absolute;inset:0;background:#000;overflow:hidden;}
+.cx-card-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  transition:transform .35s ease;}
+.cx-card:hover .cx-card-media img{transform:scale(1.12);}
+.cx-card-play{position:absolute;left:9px;bottom:9px;width:26px;height:26px;border-radius:50%;
+  background:rgba(212,163,89,.95);color:#0a0a0a;display:flex;align-items:center;
+  justify-content:center;font-size:10px;padding-left:1.5px;z-index:2;}
+.cx-card-info{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 9px;
+  background:linear-gradient(0deg,rgba(0,0,0,.88) 20%,rgba(0,0,0,.55) 55%,transparent 100%);}
+.cx-card-titulo{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px;padding-left:32px;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.cx-card-meta{font-size:9.5px;color:#c9c9c9;padding-left:32px;}
+.cx-card.locked{padding:0;background:#0a0a0a;}
+.cx-card.locked:hover{transform:none;box-shadow:none;}
+.cx-card.locked .cx-card-titulo,.cx-card.locked .cx-card-meta{padding-left:10px;}
+.cx-lock-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:16px 20px;border-radius:16px;background:rgba(0,0,0,.55);border:1px solid #D4A359;
+  pointer-events:none;text-align:center;}
+.cx-lock-badge-ico{font-size:32px;color:#D4A359;line-height:1;}
+.cx-lock-badge-txt{font-size:12px;font-weight:700;color:#D4A359;letter-spacing:.4px;text-transform:uppercase;}
+.cx-empty{text-align:center;color:#707070;font-size:12.5px;padding:40px 20px;}
+@media(max-width:640px){
+  .cx-hero{flex-direction:column;align-items:flex-start;}
+  .cx-hero-deco{width:100%;height:auto;aspect-ratio:560/220;}
+}
+
+/* ── Modal detalle de curso (lista de vídeos) ── */
+.curso-detalle-overlay{position:fixed;inset:0;z-index:960;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:fadeOverlay .2s ease both;}
+.curso-detalle-card{position:relative;width:100%;max-width:480px;max-height:82vh;overflow-y:auto;
+  background:#0c0c0c;border:1px solid rgba(212,163,89,.3);border-radius:20px;
+  padding:26px 22px 22px;animation:scaleIn .3s cubic-bezier(.34,1.2,.64,1) both;}
+.curso-detalle-close{position:absolute;top:10px;right:10px;width:30px;height:30px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.4);
+  color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;}
+.curso-detalle-media{position:relative;width:100%;border-radius:14px;overflow:hidden;
+  background:#000;margin-bottom:16px;display:flex;align-items:center;justify-content:center;
+  max-height:55vh;}
+.curso-detalle-media img{display:block;width:100%;height:auto;max-height:55vh;object-fit:contain;}
+.curso-detalle-titulo{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:#fff;
+  margin:0 0 4px;padding-right:26px;}
+.curso-detalle-meta{font-size:11.5px;color:#D4A359;margin:0 0 16px;}
+.curso-detalle-body{transition:opacity .35s ease,transform .35s ease;}
+.curso-detalle-body.cxd-body-enter{opacity:0;transform:translateY(10px);}
+.curso-detalle-body.cxd-body-enter.cxd-body-enter-active{opacity:1;transform:translateY(0);}
+.curso-detalle-locked{display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:20px 10px 6px;text-align:center;}
+.curso-detalle-locked-ico{width:48px;height:48px;border-radius:50%;background:rgba(212,163,89,.14);
+  border:1px solid #D4A359;display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:#D4A359;}
+.curso-detalle-locked-txt{font-size:12.5px;color:#c9c9c9;line-height:1.6;}
+#cxPlayerWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;
+  border-radius:12px;overflow:hidden;margin-bottom:14px;display:none;}
+#cxPlayerWrap iframe,#cxPlayerWrap video{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.curso-detalle-video-row{display:flex;align-items:center;gap:12px;padding:11px 12px;
+  border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);
+  cursor:pointer;margin-bottom:8px;transition:all .18s;}
+.curso-detalle-video-row:hover,.curso-detalle-video-row.playing{border-color:#D4A359;
+  background:rgba(212,163,89,.07);}
+.curso-detalle-video-num{width:24px;height:24px;border-radius:50%;border:1px solid #D4A359;
+  color:#D4A359;display:flex;align-items:center;justify-content:center;font-size:10.5px;
+  font-weight:700;flex:0 0 auto;}
+.curso-detalle-video-titulo{font-size:12.5px;color:#e6e6e6;font-weight:500;}
+@media(max-width:480px){ .cx-page{margin:-16px -16px 0;padding:22px 14px 50px;} }
+
+/* ── Scroll reveal: animación ligera "slide-in" al hacer scroll (ver
+   initScrollReveal en portal.js). Solo opacity+transform (barato en móvil,
+   no dispara reflow) con una curva de salida suave. El estado inicial vive
+   en la clase base; .in-view la activa cuando el elemento entra en pantalla
+   vía IntersectionObserver. Si el navegador prefiere menos movimiento, se
+   muestra todo directamente sin animar. ── */
+/* Estado inicial (antes de .in-view): invisible y desplazado fuera de
+   pantalla — con !important para blindarlo contra cualquier otra regla
+   de mayor peso. Se expresa como :not(.in-view) para que, en cuanto JS
+   agrega .in-view, esta regla deje de aplicar (sin necesidad de !important
+   en el estado final) y la transición pueda correr con normalidad. */
+.reveal-left:not(.in-view),
+.reveal-right:not(.in-view),
+.reveal-down:not(.in-view),
+.reveal-up:not(.in-view){
+  opacity:0 !important;
+  visibility:hidden;
+}
+.reveal-left:not(.in-view){transform:translateX(calc(-1 * var(--rv-dist,100px)));}
+.reveal-right:not(.in-view){transform:translateX(var(--rv-dist,100px));}
+.reveal-down:not(.in-view){transform:translateY(calc(-1 * var(--rv-dist,60px)));}
+.reveal-up:not(.in-view){transform:translateY(var(--rv-dist,30px));}
+.reveal-left,.reveal-right,.reveal-down,.reveal-up{
+  transition:transform .7s cubic-bezier(.16,1,.3,1),opacity .7s ease-out;
+  will-change:transform,opacity;
+}
+/* Estado final: no declara transform, así nunca compite con el
+   transform:translateY(-2px) de :hover en .card una vez revelada.
+   will-change:auto es clave: mientras queda "transform" declarado (aunque
+   sea solo como pista de rendimiento), el elemento crea un containing
+   block para sus descendientes position:fixed — eso rompía overlays de
+   pantalla completa (p.ej. el reproductor de vídeo #aulaWrap) que quedan
+   anidados dentro de un contenedor .reveal-up ya revelado, haciendo que
+   se muestren dentro del flujo normal de la página en vez de a pantalla
+   completa. Al soltar will-change una vez terminada la animación, el
+   overlay vuelve a posicionarse respecto al viewport como corresponde. */
+.reveal-left.in-view,.reveal-right.in-view,.reveal-down.in-view,.reveal-up.in-view{
+  opacity:1;
+  visibility:visible;
+  will-change:auto;
+}
+@media(prefers-reduced-motion:reduce){
+  .reveal-left,.reveal-right,.reveal-down,.reveal-up{transition:none;}
+  .reveal-left:not(.in-view),.reveal-right:not(.in-view),
+  .reveal-down:not(.in-view),.reveal-up:not(.in-view){
+    opacity:1 !important;visibility:visible;transform:none;
+  }
+}
+
+/* ── Los 5 bloques superiores de Inicio (perfil, banner de referidos,
+   calendario, racha, Mis Vídeos) usaban antes una secuencia de entrada
+   fija por @keyframes (animation-fill-mode:both) que solo corría una vez
+   al montar la vista y nunca se repetía al volver a subir con el scroll.
+   Ahora usan las mismas clases .reveal-left/.reveal-right/.reveal-down/
+   .reveal-up (con --rv-dist inline por bloque para conservar su distancia
+   original) del motor scroll-reveal de más arriba, así se revelan igual
+   que el resto de tarjetas y se re-animan cada vez que el bloque sale y
+   vuelve a entrar en pantalla — ver initScrollReveal en portal.js. ── */
+</style>
+</head>
+<body>
+<script>
+/* Aplica el tema guardado ANTES de pintar el resto del body, para que no
+   haya un parpadeo dorado→verde al cargar la página (ver pToggleTema() en
+   portal.js, que es quien guarda/lee esta misma clave). */
+try{ if (localStorage.getItem('malevo_theme')==='verde') document.body.classList.add('theme-green'); }catch{}
+</script>
+
+<!-- LOGIN passwordless: Paso 1 (email/teléfono) → Paso 2 (código temporal) -->
+<div id="loginOverlay">
+  <form id="loginPasoContacto" onsubmit="portalSolicitarCodigo(event)" style="position:relative;background:rgba(10,8,0,.95);
+    backdrop-filter:blur(40px);border:1px solid rgba(226,144,35,.25);border-radius:var(--r-xl);
+    padding:44px 36px;width:100%;max-width:400px;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.06);
+    text-align:center;animation:scaleIn .4s cubic-bezier(.34,1.56,.64,1);">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:70px;height:70px;
+      border-radius:20px;margin-bottom:20px;background:linear-gradient(135deg,#2a1d00,#0a0800);
+      border:1px solid rgba(226,144,35,.42);box-shadow:0 4px 20px rgba(0,0,0,.5);">
+      <span style="font-family:'Sora',sans-serif;font-size:32px;font-weight:800;
+        background:linear-gradient(135deg,#E29023,#E29023);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">M</span>
+    </div>
+    <h1 style="font-family:'Sora',sans-serif;font-size:27px;font-weight:700;letter-spacing:-.4px;">Malevo</h1>
+    <p style="font-size:10.5px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin:5px 0 14px;">Mi Espacio</p>
+    <!-- Badge modo alumno -->
+    <div style="display:inline-flex;align-items:center;gap:7px;font-size:10.5px;
+      color:var(--muted);padding:4px 13px;background:rgba(226,144,35,.06);
+      border:1px solid rgba(226,144,35,.18);border-radius:30px;margin-bottom:18px;letter-spacing:.5px;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+        background:var(--ok);box-shadow:0 0 6px rgba(226,144,35,.6);"></span>
+      MODO ALUMNO
+    </div>
+    <div style="text-align:left;">
+      <label style="font-size:11.5px;color:var(--text-2);font-weight:500;display:block;margin-bottom:6px;">Email o teléfono</label>
+      <input type="text" id="pContacto" autocapitalize="none" autocomplete="username" required
+        placeholder="tu@email.com o 600 000 000">
+    </div>
+    <div id="pErrorContacto" style="color:var(--warn);font-size:13px;margin-top:12px;min-height:18px;"></div>
+    <button type="submit" id="pBtnEnviarCodigo" class="btn" style="width:100%;margin-top:12px;padding:14px;font-size:14.5px;">Enviar código de acceso</button>
+    <!-- Atajo de desarrollo: solo se muestra en localhost (ver _esLocalhost()
+         en portal.js). El servidor además bloquea /api/dev-auto-login fuera
+         de localhost, así que este botón nunca funciona en producción. -->
+    <div id="pDevLoginWrap" style="display:none;margin-top:10px;">
+      <button type="button" class="btn" onclick="portalDevLogin()"
+        style="width:100%;padding:10px;font-size:12.5px;background:rgba(226,144,35,.12);
+        border:1px dashed var(--gold-2);color:var(--gold-2);">
+        ⚡ Entrar directo como Alumno de prueba
+      </button>
+    </div>
+    <div style="margin-top:16px;font-size:12.5px;color:var(--muted);">
+      ¿Primera vez? <a href="/registro.html" style="color:var(--gold-2);">Crear cuenta</a>
+      &nbsp;·&nbsp;
+      <a href="/login.html" style="color:var(--muted);font-size:11px;text-decoration:none;">← Cambiar modo</a>
+    </div>
+  </form>
+
+  <form id="loginPasoCodigo" onsubmit="portalConfirmarCodigo(event)" style="display:none;position:relative;background:rgba(10,8,0,.95);
+    backdrop-filter:blur(40px);border:1px solid rgba(226,144,35,.25);border-radius:var(--r-xl);
+    padding:44px 36px;width:100%;max-width:400px;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.06);
+    text-align:center;animation:scaleIn .4s cubic-bezier(.34,1.56,.64,1);">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:70px;height:70px;
+      border-radius:20px;margin-bottom:20px;background:linear-gradient(135deg,#2a1d00,#0a0800);
+      border:1px solid rgba(226,144,35,.42);box-shadow:0 4px 20px rgba(0,0,0,.5);">
+      <span style="font-family:'Sora',sans-serif;font-size:32px;font-weight:800;
+        background:linear-gradient(135deg,#E29023,#E29023);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">M</span>
+    </div>
+    <h1 style="font-family:'Sora',sans-serif;font-size:27px;font-weight:700;letter-spacing:-.4px;">Código de acceso</h1>
+    <p style="font-size:12.5px;color:var(--text-2);margin:8px 0 18px;">
+      Enviado a <strong id="pContactoConfirmado" style="color:var(--gold-2);"></strong>
+    </p>
+    <!-- Simulado en pantalla: todavía no hay un proveedor real de email/SMS
+         conectado (ver server.js → enviarCodigoAcceso), así que el código
+         se muestra aquí directamente y se autocompleta más abajo para que
+         el acceso sea inmediato y sin fricción. -->
+    <div id="pCodigoSimuladoBox" style="background:rgba(226,144,35,.08);border:1px solid rgba(226,144,35,.25);
+      border-radius:var(--r);padding:12px;margin-bottom:18px;font-size:11.5px;color:var(--text-2);">
+      Código simulado (sin proveedor de email/SMS conectado todavía):
+      <div id="pCodigoSimuladoValor" style="font-family:'Sora',sans-serif;font-size:24px;font-weight:800;
+        color:var(--gold-2);letter-spacing:4px;margin-top:6px;"></div>
+    </div>
+    <div style="text-align:left;">
+      <label style="font-size:11.5px;color:var(--text-2);font-weight:500;display:block;margin-bottom:6px;">Código de 6 dígitos</label>
+      <input type="text" id="pCodigo" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required
+        style="letter-spacing:4px;text-align:center;font-size:18px;">
+    </div>
+    <div id="pErrorCodigo" style="color:var(--warn);font-size:13px;margin-top:12px;min-height:18px;"></div>
+    <button type="submit" class="btn" style="width:100%;margin-top:12px;padding:14px;font-size:14.5px;">Entrar</button>
+    <div style="margin-top:16px;font-size:12.5px;color:var(--muted);">
+      <a href="#" onclick="portalVolverPasoContacto(event)" style="color:var(--muted);text-decoration:none;">← Usar otro email o teléfono</a>
+    </div>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="portalSidebarOverlay" onclick="togglePortalSidebar()"></div>
+
+<!-- Prompt de instalación PWA para cuentas "solo cursos" (soloCursosExternos)
+     — ver mostrarPromptInstalarPWA()/_pInstalarPWANativo() en portal.js. -->
+<div id="pInstalarOverlay">
+  <div class="p-instalar-card">
+    <img class="p-instalar-logo" src="/assets/malevo-logo-real.png" alt="Malevo Academia" onerror="this.style.display='none'">
+    <div class="p-instalar-titulo">Instalá la app en tu móvil</div>
+    <p class="p-instalar-sub">Agregá Malevo a tu pantalla de inicio: entrás directo a tus cursos con un ícono, sin buscar el link de nuevo.</p>
+    <button type="button" class="btn" id="pBtnInstalarNativo" onclick="_pInstalarPWANativo()" style="display:none;width:100%;margin-bottom:14px;">⬇ Instalar ahora</button>
+    <div class="p-instalar-tabs" id="pInstalarTabs">
+      <button type="button" class="p-instalar-tab" data-plataforma="android" onclick="_pInstalarMostrarPasos('android')">Android</button>
+      <button type="button" class="p-instalar-tab" data-plataforma="ios" onclick="_pInstalarMostrarPasos('ios')">iPhone</button>
+    </div>
+    <div class="p-instalar-pasos" id="pPasosAndroid">
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">1</span><span>Tocá los <strong>tres puntos ⋮</strong> arriba a la derecha del navegador.</span></div>
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">2</span><span>Elegí <strong>Instalar aplicación</strong> (o <strong>Añadir a pantalla de inicio</strong>).</span></div>
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">3</span><span>Confirmá tocando <strong>Instalar</strong>.</span></div>
+    </div>
+    <div class="p-instalar-pasos" id="pPasosIOS" style="display:none;">
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">1</span><span>Tocá el botón <strong>Compartir</strong> (el cuadrado con la flecha) en Safari.</span></div>
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">2</span><span>Elegí <strong>Añadir a pantalla de inicio</strong>.</span></div>
+      <div class="p-instalar-paso"><span class="p-instalar-paso-num">3</span><span>Tocá <strong>Añadir</strong> arriba a la derecha.</span></div>
+    </div>
+    <button type="button" class="p-instalar-ahora-no" onclick="_pInstalarCerrar()">Ahora no</button>
+  </div>
+</div>
+
+<div id="portalApp" style="display:none;">
+
+  <header id="portalHeader">
+    <div class="brand">
+      <button id="pBackBtn" onclick="pVolver()" aria-label="Volver">← Volver</button>
+      <button id="portalSidebarToggle" onclick="togglePortalSidebar()"
+        style="display:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+          color:var(--muted);padding:6px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:16px;
+          font-family:inherit;">☰</button>
+      <div class="brand-icon"><span>M</span></div>
+      <div>
+        <div class="brand-name">Malevo</div>
+        <div class="brand-sub">Mi Espacio</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button id="pThemeToggle" class="theme-toggle-btn" onclick="pToggleTema()"
+        title="Cambiar a Modo Verde" aria-label="Cambiar tema Dorado/Verde">
+        <span id="pThemeToggleLabel" class="theme-toggle-label">Dorado</span>
+        <span class="theme-toggle-track"><span class="theme-toggle-thumb">✦</span></span>
+      </button>
+      <span id="pUserBadge"></span>
+      <span id="pPlanBadge" style="display:none;font-size:10.5px;padding:3px 10px;
+        border-radius:20px;font-weight:600;background:rgba(226,144,35,.1);
+        border:1px solid rgba(226,144,35,.25);color:var(--gold);letter-spacing:.3px;"></span>
+      <button class="btn-salir" onclick="portalLogout()">Salir</button>
+      <div id="pHeaderAvatar" class="hero-avatar" style="width:34px;height:34px;" onclick="pNavigate('perfil')" title="Mi perfil"></div>
+    </div>
+  </header>
+
+  <!-- Nav -->
+  <nav id="portalNav">
+    <button class="pnav-btn" data-pview="inicio" onclick="pNavigate('inicio')">🏠 Inicio</button>
+    <button class="pnav-btn" data-pview="cursos" onclick="pNavigate('cursos')">🎓 Cursos</button>
+    <button class="pnav-btn" data-pview="perfil" onclick="pNavigate('perfil')">👤 Mi perfil</button>
+  </nav>
+
+  <!-- Área principal con tabs + contenido -->
+  <div id="portalMain">
+    <div id="discTabs" style="display:none;"></div>
+    <div id="nivelPills" style="display:none;"></div>
+    <div id="portalContent"></div>
+  </div>
+
+</div>
+
+<!-- Lightbox de Eventos: vista ampliada al tocar una tarjeta del carrusel -->
+<div id="evLightboxOverlay" class="ev-lightbox-overlay" onclick="if(event.target===this) evCerrarLightbox()">
+  <div class="ev-lightbox-card">
+    <button type="button" class="ev-lightbox-close" onclick="evCerrarLightbox()" aria-label="Cerrar">×</button>
+    <div id="evLightboxNavWrap" style="display:none;">
+      <button type="button" class="ev-lightbox-nav prev" onclick="evLightboxAnterior()" aria-label="Evento anterior">←</button>
+      <button type="button" class="ev-lightbox-nav next" onclick="evLightboxSiguiente()" aria-label="Evento siguiente">→</button>
+    </div>
+    <div id="evLightboxMedia" class="ev-lightbox-media"></div>
+    <div class="ev-lightbox-info">
+      <div id="evLightboxTitulo" class="ev-lightbox-titulo"></div>
+      <div id="evLightboxFecha" class="ev-lightbox-fecha"></div>
+      <div id="evLightboxDesc" class="ev-lightbox-desc"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:300;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+
+<script src="portal.js"></script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Malevo · Acceso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080808;
+  --surface:rgba(255,255,255,.04);
+  --border:rgba(255,215,100,.14);
+  --border-2:rgba(255,215,100,.25);
+  --border-hi:rgba(255,215,100,.45);
+  --text:#f5f5f5;
+  --text-2:#b0b0b0;
+  --muted:#686868;
+  --accent:#c9a84c;
+  --accent-2:#e8cc7a;
+  --accent-deep:#8a6520;
+  --accent-soft:rgba(200,168,75,.14);
+  --accent-glow:rgba(200,168,75,.38);
+  --gold:#c9a84c;
+  --gold-2:#e8cc7a;
+  --gold-light:#f5e099;
+  --gold-soft:rgba(200,168,75,.14);
+  --gold-glow:rgba(200,168,75,.42);
+  --warn:#e05c5c;
+  --shadow:0 8px 32px rgba(0,0,0,.70);
+  --shadow-lg:0 24px 64px rgba(0,0,0,.85);
+  --t:.22s cubic-bezier(.4,0,.2,1);
+  --r-sm:10px; --r:16px; --r-lg:22px; --r-xl:28px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{height:100%;}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% -10%,rgba(40,30,5,.28) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 110%,rgba(30,20,0,.22) 0%,transparent 55%),
+    #080808;
+}
+h1,h2,h3,.sora{font-family:'Sora','Inter',sans-serif;}
+
+/* ── Orbes decorativos ── */
+.orb{position:fixed;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(200,168,75,.07) 0%,transparent 70%);
+  animation:shimmer 5s ease-in-out infinite;}
+@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.85}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ── Tarjeta principal ── */
+.card{
+  position:relative;z-index:2;
+  background:rgba(10,8,0,.96);
+  backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+  border:1px solid var(--border-2);
+  border-radius:var(--r-xl);
+  padding:48px 40px 44px;
+  width:100%;max-width:440px;
+  box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.06);
+  text-align:center;
+  animation:scaleIn .45s cubic-bezier(.34,1.56,.64,1);
+}
+
+/* ── Logo ── */
+.logo-wrap{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:78px;height:78px;border-radius:24px;margin-bottom:24px;
+  background:linear-gradient(135deg,#2a1d00,#0a0800);
+  border:1px solid rgba(200,168,75,.42);
+  box-shadow:0 0 32px rgba(200,168,75,.30),inset 0 1px 0 rgba(255,255,255,.12);
+}
+.logo-wrap span{
+  font-family:'Sora',sans-serif;font-size:36px;font-weight:800;
+  background:linear-gradient(135deg,#f5e099,#c9a84c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.title{font-family:'Sora',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.5px;}
+.sub{font-size:10.5px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin:6px 0 36px;}
+
+/* ── Selector de roles ── */
+.selector-label{
+  font-size:11.5px;color:var(--text-2);font-weight:500;
+  letter-spacing:.5px;margin-bottom:14px;text-transform:uppercase;
+}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px;}
+
+.role-card{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:22px 16px;border-radius:var(--r-lg);cursor:pointer;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);
+  transition:all .22s cubic-bezier(.4,0,.2,1);text-decoration:none;color:inherit;
+  position:relative;overflow:hidden;
+}
+.role-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(200,168,75,.12),transparent);
+  opacity:0;transition:opacity .22s;
+}
+.role-card:hover{
+  border-color:var(--border-hi);
+  background:rgba(200,168,75,.08);
+  transform:translateY(-3px);
+  box-shadow:0 8px 28px rgba(200,168,75,.22);
+}
+.role-card:hover::before{opacity:1;}
+.role-card:active{transform:translateY(-1px);}
+
+.role-icon{
+  font-size:32px;line-height:1;
+  filter:drop-shadow(0 2px 8px rgba(200,168,75,.3));
+}
+.role-name{
+  font-family:'Sora',sans-serif;font-size:14px;font-weight:700;
+  color:var(--gold-2);letter-spacing:-.2px;
+}
+.role-desc{
+  font-size:11px;color:var(--muted);text-align:center;line-height:1.4;
+}
+
+/* ── Separador ── */
+.divider{
+  display:flex;align-items:center;gap:12px;
+  color:var(--muted);font-size:11px;letter-spacing:.5px;
+  margin-bottom:24px;
+}
+.divider::before,.divider::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,215,100,.15),transparent);
+}
+
+/* ── Pie ── */
+.footer-note{
+  font-size:11.5px;color:var(--muted);line-height:1.6;
+  animation:fadeUp .5s .2s both;
+}
+.footer-note a{color:var(--gold-2);text-decoration:none;}
+.footer-note a:hover{color:var(--gold-light);}
+
+/* ── Badge de modo ── */
+.mode-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10.5px;color:var(--muted);padding:4px 12px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  border-radius:30px;margin-bottom:28px;letter-spacing:.5px;
+}
+.mode-badge .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--gold);
+  box-shadow:0 0 6px var(--gold-glow);
+}
+</style>
+</head>
+<body>
+
+<div class="orb" style="width:600px;height:600px;top:-150px;left:-150px;animation-delay:0s;"></div>
+<div class="orb" style="width:400px;height:400px;bottom:-100px;right:-80px;animation-delay:2s;"></div>
+
+<div class="card">
+
+  <div class="logo-wrap"><span>M</span></div>
+  <h1 class="title">Malevo</h1>
+  <p class="sub">Academia de Baile</p>
+
+  <div class="mode-badge">
+    <span class="dot"></span>
+    MODO OSCURO · ACCESO PRIVADO
+  </div>
+
+  <p class="selector-label">¿Cómo quieres acceder?</p>
+
+  <div class="role-grid">
+    <a class="role-card" href="/index.html" id="btnAdmin">
+      <div class="role-icon">🛡️</div>
+      <div class="role-name">Administrador</div>
+      <div class="role-desc">Panel de gestión completo</div>
+    </a>
+    <a class="role-card" href="/portal.html" id="btnAlumno">
+      <div class="role-icon">🎓</div>
+      <div class="role-name">Alumno</div>
+      <div class="role-desc">Mi espacio personal</div>
+    </a>
+  </div>
+
+  <div class="divider">PRIMERA VEZ</div>
+
+  <p class="footer-note">
+    ¿Aún no tienes cuenta?
+    <a href="/registro.html">Regístrate aquí</a>
+  </p>
+
+</div>
+
+<script>
+// Si ya hay sesión activa, redirigir automáticamente al destino correcto
+(async function(){
+  try {
+    const r = await fetch('/api/me', {cache:'no-store', credentials:'same-origin'});
+    if (!r.ok) return; // sin sesión → mostrar selector
+    const j = await r.json();
+    if (j.role === 'admin' || j.role === 'teacher') {
+      location.replace('/index.html');
+    } else {
+      location.replace('/portal.html');
+    }
+  } catch {
+    // sin servidor disponible, mostrar selector normal
+  }
+})();
+</script>
+
+</body>
+</html>

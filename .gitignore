@@ -1,0 +1,25 @@
+# Dependencias (se reinstalan con "npm install" / el build de Koyeb)
+node_modules/
+
+# Secretos — NUNCA subir las claves de Stripe/JWT al repositorio
+.env
+.env.*
+!.env.example
+
+# Datos reales de la academia (alumnos, pagos, vídeos…) — no van en git.
+# En producción, esta carpeta debe vivir en un volumen persistente de
+# Koyeb montado en la misma ruta (ver DATA_DIR en server.js), para que no
+# se borre en cada redeploy.
+data/
+
+# Logs y archivos temporales
+*.log
+npm-debug.log*
+.DS_Store
+
+# Herramienta de previsualización local del panel admin (Cowork) — trae
+# embebido un snapshot real de la base de datos (emails, fotos de alumnos)
+# para poder previsualizar sin depender del servidor. No se usa en
+# producción/Koyeb, así que no debe subirse a un repositorio con datos
+# reales de alumnos dentro.
+malevo-vista-previa.html
