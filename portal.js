@@ -481,11 +481,13 @@ async function arrancarPortal(){
   }
 
   // Si venimos de canjear un token de curso externo (curso-acceso.html
-  // redirige con "?curso=desbloqueado"), priorizar Cursos Exclusivos para
-  // que el alumno vea de inmediato lo que acaba de desbloquear — incluso
-  // si su perfil todavía no está completo (eso lo puede terminar después
-  // desde Mi Perfil, no bloquea ver el curso que ya pagó).
+  // redirige con "?curso=desbloqueado&cursoId=..."), priorizar Cursos
+  // Exclusivos para que el alumno vea de inmediato lo que acaba de
+  // desbloquear — incluso si su perfil todavía no está completo (eso lo
+  // puede terminar después desde Mi Perfil, no bloquea ver el curso que
+  // ya pagó).
   const _paramsInicio = new URLSearchParams(window.location.search);
+  const _cursoRecienDesbloqueadoId = _paramsInicio.get('curso')==='desbloqueado' ? _paramsInicio.get('cursoId') : '';
   if (currentUser.soloCursosExternos){
     // Nunca pasan por Perfil: no los interesa ni necesitan completarlo.
     pNavigate('cursos');
@@ -497,12 +499,27 @@ async function arrancarPortal(){
     pNavigate('inicio');
   }
 
+  // Sin pasos intermedios: en vez de dejar al comprador parado en la LISTA
+  // de Cursos Exclusivos teniendo que encontrar y tocar su propio curso,
+  // se lo abrimos directo (modal + primer vídeo listo) apenas cae al
+  // portal. Es un overlay propio (ver cxAbrirCurso en la sección de Cursos
+  // Exclusivos), así que no depende de que pNavigate('cursos') ya haya
+  // terminado de pintar la lista de abajo.
+  if (_cursoRecienDesbloqueadoId){
+    _abrirCursoDesbloqueadoDirecto(_cursoRecienDesbloqueadoId);
+  }
+
   // Prompt de instalación PWA — solo para cuentas "solo cursos" (ver
   // mostrarPromptInstalarPWA() más abajo, cerca del registro del Service
-  // Worker). Con un pequeño delay para no competir con el toast de
-  // "¡Curso desbloqueado!" que dispara _avisarCursoDesbloqueado() más abajo.
+  // Worker). Delay un poco mayor que antes para no competir con la
+  // apertura del curso/reproductor de arriba — primero ve su contenido
+  // listo, después se le ofrece instalar la app. Si viene de canjear un
+  // curso recién (_cursoRecienDesbloqueadoId), se fuerza el prompt aunque
+  // ya hubiera un "ahora no"/instalación previa marcada en este navegador
+  // — cubre el caso de quien desinstaló la app y quiere volver a
+  // instalarla al sumar otro curso.
   if (currentUser.soloCursosExternos){
-    setTimeout(mostrarPromptInstalarPWA, 1400);
+    setTimeout(function(){ mostrarPromptInstalarPWA(!!_cursoRecienDesbloqueadoId); }, 2200);
   }
 
   // Notificaciones push: no debe bloquear ni romper el arranque del portal
@@ -536,18 +553,40 @@ function _avisarRegresoDeStripe(){
 }
 
 /* Toast tras canjear un token de acceso a curso externo (ver curso-acceso.html
-   → redirige a /portal.html?curso=desbloqueado). Se limpia el parámetro para
-   que no reaparezca el aviso si el alumno recarga la página. */
+   → redirige a /portal.html?curso=desbloqueado&cursoId=...). Se limpian
+   ambos parámetros para que no vuelva a abrirse el curso ni a reaparecer
+   el aviso si el alumno recarga la página. */
 function _avisarCursoDesbloqueado(){
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('curso') !== 'desbloqueado') return;
-    showToast('¡Curso desbloqueado! Ya está disponible en Cursos Exclusivos 🎉','ok',5000);
+    showToast('¡Curso desbloqueado! Ya está listo para ver 🎉','ok',4000);
     params.delete('curso');
+    params.delete('cursoId');
     const query = params.toString();
     const nuevaUrl = window.location.pathname + (query ? '?'+query : '');
     window.history.replaceState({}, '', nuevaUrl);
   } catch(e) { /* no crítico */ }
+}
+
+/* Abre directo el detalle de un curso recién desbloqueado (sin que el
+   comprador tenga que buscarlo en la lista de Cursos Exclusivos) y, si
+   tiene al menos un vídeo cargado, lo deja listo/reproduciendo — ver
+   cxAbrirCurso()/cxPlayVideo() más abajo, en la sección de Cursos
+   Exclusivos. Se llama desde arrancarPortal() apenas cae "?cursoId=...". */
+async function _abrirCursoDesbloqueadoDirecto(cursoId){
+  try {
+    if (!allCursos.length){
+      const r = await fetch('/api/cursos', {credentials:'same-origin'});
+      if (r.ok) allCursos = await r.json();
+    }
+    const c = (allCursos||[]).find(x => x.id===cursoId);
+    if (!c) return; // link viejo/curso borrado — el alumno igual ve la lista de Cursos Exclusivos
+    cxAbrirCurso(cursoId);
+    if (c.tieneAcceso!==false && (c.videos||[]).length){
+      cxPlayVideo(cursoId, 0);
+    }
+  } catch(e) { /* si falla, queda igual la lista de Cursos Exclusivos como respaldo */ }
 }
 
 /* ── Recargar clases y perfil del alumno desde el servidor ── */
@@ -4387,9 +4426,19 @@ window.addEventListener('appinstalled', function(){
   showToast('¡Aplicación instalada! Ya podés abrir Malevo desde tu pantalla de inicio 🎉','ok',5000);
 });
 
-function mostrarPromptInstalarPWA(){
+// forzar=true ignora el "ahora no"/appinstalled guardado en localStorage —
+// se usa al canjear un curso nuevo (ver arrancarPortal), porque ese
+// localStorage vive en el NAVEGADOR y sobrevive a que el alumno desinstale
+// la app real de su pantalla de inicio: sin este bypass, alguien que
+// desinstaló la PWA y vuelve a canjear otro link para reinstalarla se
+// encontraba con que el prompt nunca reaparecía (bug real reportado —
+// "no me deja volver a instalar"), porque quedaba bloqueado para siempre
+// por una marca de una instalación/descarte anterior en ese mismo navegador.
+function mostrarPromptInstalarPWA(forzar){
   if (_pEsStandalone()) return; // ya la tiene instalada y abierta como app
-  try{ if (localStorage.getItem('malevo_instalar_dismiss')==='1') return; }catch(e){}
+  if (!forzar) {
+    try{ if (localStorage.getItem('malevo_instalar_dismiss')==='1') return; }catch(e){}
+  }
   const overlay = $('pInstalarOverlay');
   if (!overlay) return;
   _pInstalarMostrarPasos(_pInstalarDetectarPlataforma());

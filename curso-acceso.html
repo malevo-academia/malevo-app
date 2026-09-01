@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
 <title>Malevo Academia · Tu acceso</title>
 <link rel="icon" href="/assets/malevo-logo-real.png">
 <!-- Open Graph: al compartir este link por WhatsApp, la app arma una
@@ -14,6 +13,65 @@
 <meta property="og:description" content="Tocá para desbloquear tu curso — enlace de un solo uso.">
 <meta property="og:image" content="/assets/malevo-logo-real.png">
 <meta property="og:type" content="website">
+
+<!-- ── PWA: manifest propio, start_url:"/curso-acceso.html" — priorizamos
+     que quien recibe el link primero instale la app (ver #instalarOverlay
+     más abajo); recién después se le pide nombre/teléfono. Como cada link
+     trae un token distinto y el manifest es un archivo estático (no puede
+     llevar el token del visitante de turno), el token se guarda en
+     localStorage (ver script debajo) para sobrevivir el salto de "abrir en
+     el navegador" a "abrir la app ya instalada desde el ícono". ── -->
+<link rel="manifest" href="/manifest-curso-acceso.json">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/icons/icon-512.png">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Malevo">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<script>
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      reg.update().catch(function(){});
+    }).catch(function(err){
+      console.error('[Malevo] No se pudo registrar el Service Worker (/sw.js):', err);
+    });
+  }
+  // Ver el mismo bloque en index.html/registro-membresia.html: distingue un
+  // celular/tablet (a quien sí le conviene instalar la app) de un ordenador
+  // (que ya tiene acceso completo por navegador y nunca debe quedar
+  // bloqueado por la landing de instalación).
+  window._malevoEsMovil = function(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var esAndroidUOtroMovil = /Android|Mobile|Windows Phone/i.test(ua);
+    return esIOS || esAndroidUOtroMovil;
+  };
+  // Si el link trae token ("?t=..."), lo guardamos ANTES de decidir qué
+  // pantalla mostrar: así, si el visitante instala la app y la vuelve a
+  // abrir desde el ícono (start_url sin ningún parámetro), el script de
+  // más abajo puede recuperar este mismo token y retomar el flujo justo
+  // donde quedó, sin que la instalación le haga "perder" el link.
+  (function(){
+    try{
+      var tUrl = new URLSearchParams(location.search).get('t');
+      if (tUrl) localStorage.setItem('malevo_ca_pending_token', tUrl);
+    }catch(e){}
+  })();
+  // Decide de forma síncrona, antes de pintar nada, si esta página debe
+  // mostrar el contenido real (app ya instalada/standalone, o un
+  // ordenador) o la landing de instalación (celular/tablet en navegador
+  // normal), agregando una clase a <html> que el CSS usa para elegir.
+  document.documentElement.classList.toggle(
+    'es-standalone',
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    !window._malevoEsMovil()
+  );
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,7 +85,7 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
     min-height:100dvh;overflow-x:hidden;-webkit-text-size-adjust:100%;}
   h1,h2,h3{font-family:'Sora',sans-serif;margin:0;}
-  #app{max-width:480px;margin:0 auto;padding:28px 18px 60px;min-height:100dvh;display:flex;flex-direction:column;}
+  #appMain{max-width:480px;margin:0 auto;padding:28px 18px 60px;min-height:100dvh;display:flex;flex-direction:column;}
   .cx-header{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;margin-bottom:26px;}
   .cx-header img{width:64px;height:64px;object-fit:contain;border-radius:14px;}
   .cx-header .marca{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
@@ -48,10 +106,128 @@
   .cx-error{color:var(--warn);font-size:13px;margin-top:10px;text-align:center;min-height:16px;}
   .cx-footer{text-align:center;margin-top:24px;color:var(--muted);font-size:11.5px;line-height:1.7;}
   .cx-footer a{color:var(--gold-2);text-decoration:none;}
+
+  /* ══ LANDING DE INSTALACIÓN ══
+     Mismo patrón que index.html/registro-membresia.html: en un navegador
+     normal de celular/tablet esto reemplaza al contenido real de la
+     página; solo con la clase "es-standalone" en <html> (agregada de
+     forma síncrona en el <head>) se muestra #appMain. En un ordenador
+     nunca se ve (es-standalone se fuerza a true ahí). */
+  #instalarOverlay{display:flex;position:fixed;inset:0;z-index:110;
+    flex-direction:column;align-items:center;justify-content:center;
+    background:#000;padding:36px 26px;text-align:center;overflow-y:auto;}
+  html.es-standalone #instalarOverlay{display:none;}
+  html:not(.es-standalone) #appMain{display:none;}
+  .instalar-logo{width:96px;height:auto;margin-bottom:22px;
+    filter:drop-shadow(0 0 26px rgba(226,144,35,.22));}
+  .instalar-titulo{font-family:'Sora',sans-serif;font-size:19px;font-weight:800;
+    color:#fff;letter-spacing:-.2px;margin-bottom:8px;}
+  .instalar-sub{font-size:13px;color:var(--text-2);max-width:320px;line-height:1.65;margin-bottom:24px;}
+  .instalar-btn-nativo{display:none;align-items:center;gap:8px;background:var(--gold);
+    color:#1a1200;border:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:14px;
+    font-family:'Sora',sans-serif;cursor:pointer;margin-bottom:20px;
+    box-shadow:0 8px 24px rgba(226,144,35,.28);}
+  .instalar-tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .instalar-tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+    color:var(--text-2);padding:7px 16px;border-radius:30px;font-size:12px;font-weight:600;
+    cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;}
+  .instalar-tab.activa{background:rgba(226,144,35,.14);border-color:var(--gold);color:var(--gold-2);}
+  .instalar-pasos{display:none;width:100%;max-width:320px;text-align:left;
+    background:rgba(255,255,255,.03);border:1px solid rgba(226,144,35,.18);
+    border-radius:14px;padding:16px 18px;margin-bottom:8px;}
+  .instalar-paso{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#d8d8d8;line-height:1.5;}
+  .instalar-paso+.instalar-paso{margin-top:12px;}
+  .instalar-paso-num{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+    background:rgba(226,144,35,.14);border:1px solid rgba(226,144,35,.4);color:var(--gold-2);
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .instalar-paso strong{color:#fff;font-weight:600;}
+  .instalar-nota{margin-top:20px;font-size:11px;color:var(--muted);max-width:290px;}
 </style>
 </head>
 <body>
-<div id="app">
+
+<!-- LANDING DE INSTALACIÓN — se muestra primero en celular/tablet. Solo al
+     entrar en modo standalone (app instalada) se revela #appMain con el
+     formulario de nombre/teléfono. -->
+<div id="instalarOverlay">
+  <img class="instalar-logo" src="/assets/malevo-logo-real.png" alt="Malevo Academia">
+  <div class="instalar-titulo">Instala Malevo para acceder a tu curso</div>
+  <p class="instalar-sub">Añade la app a tu pantalla de inicio: al abrirla vas a poder cargar tus datos y entrar directo a tu curso ya desbloqueado.</p>
+
+  <button type="button" class="instalar-btn-nativo" id="btnInstalarNativo" onclick="_instalarPWANativo()">⬇ Instalar ahora</button>
+
+  <div class="instalar-tabs" id="instalarTabs">
+    <button type="button" class="instalar-tab" data-plataforma="android" onclick="_instalarMostrarPasos('android')">Android</button>
+    <button type="button" class="instalar-tab" data-plataforma="ios" onclick="_instalarMostrarPasos('ios')">iPhone</button>
+  </div>
+
+  <div class="instalar-pasos" id="pasosAndroid">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca los <strong>tres puntos ⋮</strong> arriba a la derecha del navegador.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Elige <strong>Instalar aplicación</strong> (o <strong>Añadir a pantalla de inicio</strong>).</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Confirma tocando <strong>Instalar</strong>.</span></div>
+  </div>
+
+  <div class="instalar-pasos" id="pasosIOS">
+    <div class="instalar-paso"><span class="instalar-paso-num">1</span><span>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en Safari.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">2</span><span>Desliza y elige <strong>Añadir a pantalla de inicio</strong>.</span></div>
+    <div class="instalar-paso"><span class="instalar-paso-num">3</span><span>Toca <strong>Añadir</strong> arriba a la derecha.</span></div>
+  </div>
+
+  <p class="instalar-nota">¿Ya la instalaste? Abre el ícono de Malevo desde tu pantalla de inicio para continuar.</p>
+</div>
+<script>
+(function(){
+  function _instalarDetectarPlataforma(){
+    var ua = navigator.userAgent || '';
+    var esIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return esIOS ? 'ios' : 'android';
+  }
+  window._instalarMostrarPasos = function(plataforma){
+    var pasosAndroid = document.getElementById('pasosAndroid');
+    var pasosIOS = document.getElementById('pasosIOS');
+    if (pasosAndroid) pasosAndroid.style.display = (plataforma === 'android') ? 'block' : 'none';
+    if (pasosIOS) pasosIOS.style.display = (plataforma === 'ios') ? 'block' : 'none';
+    var tabs = document.querySelectorAll('#instalarTabs .instalar-tab');
+    tabs.forEach(function(t){ t.classList.toggle('activa', t.dataset.plataforma === plataforma); });
+  };
+  var _deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    if (!window._malevoEsMovil()) return;
+    e.preventDefault();
+    _deferredPrompt = e;
+    var btn = document.getElementById('btnInstalarNativo');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+  window._instalarPWANativo = function(){
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.finally(function(){
+      _deferredPrompt = null;
+      var btn = document.getElementById('btnInstalarNativo');
+      if (btn) btn.style.display = 'none';
+    });
+  };
+  // 'appinstalled' es la señal fiable de que la instalación terminó de
+  // verdad, tanto por el botón nativo como por los pasos manuales. La
+  // pestaña del navegador sigue sin estar en modo standalone (por eso no
+  // podemos simplemente revelar #appMain acá mismo) — el camino normal es
+  // cerrar esta pestaña y retomar desde el ícono recién agregado, que sí
+  // carga en standalone y recupera el token pendiente (ver iniciar() más
+  // abajo).
+  window.addEventListener('appinstalled', function(){
+    var overlay = document.getElementById('instalarOverlay');
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div style="font-size:48px;line-height:1;margin-bottom:16px;">✅</div>' +
+      '<div class="instalar-titulo">¡Aplicación instalada!</div>' +
+      '<p class="instalar-sub">Cierra esta pestaña y abre Malevo desde el ícono que se agregó a tu pantalla de inicio para continuar y desbloquear tu curso.</p>';
+    setTimeout(function(){ try { window.close(); } catch(e){} }, 2500);
+  });
+  window._instalarMostrarPasos(_instalarDetectarPlataforma());
+})();
+</script>
+
+<div id="appMain">
   <div class="cx-header">
     <img src="/assets/malevo-logo-real.png" alt="Malevo Academia" onerror="this.style.display='none'">
     <div class="marca">Malevo Academia</div>
@@ -105,27 +281,23 @@ function formHtml(nombreCurso){
     '</div>';
 }
 
-// Pantalla para quien YA tiene una sesión activa (ver iniciar(): detectada
-// vía /api/me) — no hace falta pedirle nombre/teléfono de nuevo, solo
-// confirmar que sume este curso a su cuenta ya existente.
-function formYaLogueadoHtml(nombreCurso, nombreAlumno){
-  var quien = nombreAlumno ? ', '+esc(nombreAlumno) : '';
-  var curso = nombreCurso ? '<strong>'+nombreCurso+'</strong>' : 'este curso';
-  return '<div class="cx-sub">¡Hola'+quien+'! Ya tenés tu cuenta de Malevo Academia — solo falta sumar '+curso+' a tu app.</div>'+
-    '<div class="cx-form">'+
-      '<button id="cxBtnConfirmar" onclick="confirmarAccesoAuto(window._cxToken)">Sumar curso a mi cuenta</button>'+
-      '<div class="cx-error" id="cxErrorForm"></div>'+
-    '</div>';
-}
-
-// Tramo compartido tras un canjear exitoso (con o sin formulario previo):
-// muestra el OK y manda al portal directo a Cursos Exclusivos.
+// Tramo compartido tras un canjear exitoso: muestra el OK y manda al
+// portal directo AL CURSO YA DESBLOQUEADO — sin pantalla intermedia de
+// lista, el alumno cae directo al detalle con sus vídeos listos para
+// reproducir. El delay es solo el mínimo para que la confirmación visual
+// no parezca un salto brusco.
 function _cxCanjeOk(data){
-  $('cxContenido').innerHTML = estadoHtml('✅', '¡Listo, '+(data.nombre||'')+'! Te llevamos a tu curso…');
-  // "?curso=desbloqueado" le indica a portal.js que debe abrir directo en
-  // Cursos Exclusivos (en vez de Inicio) para que el alumno vea de
-  // inmediato lo que acaba de desbloquear. Ver arrancarPortal() en portal.js.
-  setTimeout(function(){ location.href = '/portal.html?curso=desbloqueado'; }, 1200);
+  // Se limpia el token pendiente: ya se usó, no hace falta seguir
+  // guardándolo (y evita que un reingreso posterior al ícono sin sesión
+  // intente reusar un token que el servidor va a rechazar por gastado).
+  try{ localStorage.removeItem('malevo_ca_pending_token'); }catch(e){}
+  $('cxContenido').innerHTML = estadoHtml('✅', '¡Listo, '+(data.nombre||'')+'! Abriendo tu curso…');
+  // "?curso=desbloqueado&cursoId=..." le dice a portal.js (arrancarPortal)
+  // que abra directo el detalle de ESE curso — ver cxAbrirCurso() en
+  // portal.js. Si por lo que sea no viniera cursoId (respuesta vieja del
+  // servidor sin actualizar), cae igual en la lista de Cursos Exclusivos.
+  var destino = '/portal.html?curso=desbloqueado' + (data.cursoId ? '&cursoId='+encodeURIComponent(data.cursoId) : '');
+  setTimeout(function(){ location.href = destino; }, 450);
 }
 
 // El link corto solo trae "t" (el token) — ni el id del curso ni su nombre
@@ -160,43 +332,38 @@ async function confirmarAcceso(token){
   }
 }
 
-// Variante para quien YA tiene sesión (ver formYaLogueadoHtml/iniciar): no
-// manda nombre/teléfono en el body — el servidor identifica al comprador
-// por la cookie de sesión y solo agrega el curso a esa cuenta existente.
-async function confirmarAccesoAuto(token){
-  var errBox = $('cxErrorForm');
-  if (errBox) errBox.textContent = '';
-  var btn = $('cxBtnConfirmar');
-  if (btn){ btn.disabled = true; btn.textContent = 'Sumando curso…'; }
-  try{
-    var r = await fetch('/api/publico/token/'+encodeURIComponent(token)+'/canjear', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({})
-    });
-    var data = await r.json();
-    if (!r.ok || !data.ok){
-      if (errBox) errBox.textContent = data.error || 'No pudimos validar tu enlace.';
-      if (btn){ btn.disabled = false; btn.textContent = 'Sumar curso a mi cuenta'; }
-      return;
-    }
-    _cxCanjeOk(data);
-  }catch(e){
-    if (errBox) errBox.textContent = 'No pudimos confirmar tu acceso ahora mismo. Probá de nuevo en un momento.';
-    if (btn){ btn.disabled = false; btn.textContent = 'Sumar curso a mi cuenta'; }
-  }
-}
-
 async function iniciar(){
   var token = qs('t');
   var cont = $('cxContenido');
-  if (!token){
-    cont.innerHTML = estadoHtml('🔒', 'Este enlace está incompleto. Pedile a la academia que te reenvíe tu acceso.');
-    return;
+
+  if (token){
+    // Enlace nuevo: se limpia cualquier sesión anterior de este dispositivo
+    // (pedido explícito) para que el formulario de nombre/teléfono aparezca
+    // SIEMPRE, en vez de asumir que el visitante es el mismo alumno de una
+    // sesión previa. No hace falta esperar una respuesta especial: si no
+    // había sesión, el logout simplemente no hace nada.
+    try{ await fetch('/api/logout', { method:'POST', credentials:'same-origin' }); }catch(e){}
+  } else {
+    // Sin token en la URL: solo pasa al abrir el ícono ya instalado
+    // (start_url del manifest no lleva token). Recuperamos el último token
+    // pendiente guardado en el <head> por si el visitante instaló la app y
+    // la abre por primera vez desde el ícono, sin volver a tocar el link.
+    try{ token = localStorage.getItem('malevo_ca_pending_token') || ''; }catch(e){}
+    if (!token){
+      // Ni token en la URL ni pendiente guardado: probablemente ya terminó
+      // el flujo antes y solo está reabriendo el ícono — si tiene sesión
+      // activa lo mandamos directo a su portal en vez de mostrar un error.
+      try{
+        var rMe = await fetch('/api/me', { cache:'no-store', credentials:'same-origin' });
+        if (rMe.ok){ location.href = '/portal.html'; return; }
+      }catch(e){ /* sin sesión ni red — sigue al mensaje de enlace incompleto */ }
+      cont.innerHTML = estadoHtml('🔒', 'Este enlace está incompleto. Pedile a la academia que te reenvíe tu acceso.');
+      return;
+    }
   }
-  // Consulta al servidor apenas carga la página: así el visitante ve de
-  // inmediato si el link ya no sirve (usado/inválido) en vez de recién
+
+  // Consulta al servidor apenas se resuelve el token: así el visitante ve
+  // de inmediato si el link ya no sirve (usado/inválido) en vez de recién
   // enterarse después de completar todo el formulario.
   try{
     var r = await fetch('/api/publico/token/'+encodeURIComponent(token));
@@ -207,22 +374,9 @@ async function iniciar(){
     }
     var nombreCurso = esc(data.cursoNombre || '');
     if (nombreCurso) $('cxTitulo').textContent = 'Tu acceso a ' + nombreCurso;
-    window._cxToken = token; // usado por el onclick del botón, ver formHtml()/formYaLogueadoHtml()
+    window._cxToken = token; // usado por el onclick del botón, ver formHtml()
 
-    // ¿Ya tiene una sesión activa? (p.ej. abrió este link nuevo desde la PWA
-    // que ya tiene instalada de un curso anterior) — si es así, no tiene
-    // sentido pedirle nombre/teléfono otra vez: el servidor va a identificar
-    // al comprador por la cookie y solo sumarle el curso nuevo.
-    var nombreAlumno = '';
-    try{
-      var rMe = await fetch('/api/me', { cache:'no-store', credentials:'same-origin' });
-      if (rMe.ok){
-        var me = await rMe.json();
-        nombreAlumno = me.nombre || '';
-      }
-    }catch(e){ /* sin sesión o sin red — seguimos con el formulario normal */ }
-
-    cont.innerHTML = nombreAlumno ? formYaLogueadoHtml(nombreCurso, nombreAlumno) : formHtml(nombreCurso);
+    cont.innerHTML = formHtml(nombreCurso);
   }catch(e){
     cont.innerHTML = estadoHtml('⚠️', 'No pudimos comprobar tu enlace ahora mismo. Probá de nuevo en un momento.');
   }

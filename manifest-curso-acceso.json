@@ -1,0 +1,18 @@
+{
+  "id": "/curso-acceso.html",
+  "name": "Malevo Academia · Tu acceso al curso",
+  "short_name": "Malevo",
+  "description": "Instala Malevo Academia y accede a tu curso exclusivo.",
+  "start_url": "/curso-acceso.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "lang": "es",
+  "icons": [
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

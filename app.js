@@ -2945,7 +2945,10 @@ function abrirModalCurso(id){
   // no depende del plan ni de las clases asignadas. El único lugar donde se
   // otorga acceso es acá, en el propio curso: se listan TODOS los alumnos
   // (activos e inactivos) y el admin tilda a quién se lo desbloquea.
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student')
+  // soloCursosExternos excluidos: son compradores de un enlace de un solo
+  // uso (ver "Compradores externos" más abajo, en el mismo modal) — no son
+  // alumnos de la academia y no deben poder tildarse acá.
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos)
     .slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   const alumnosHtml = estudiantes.length
     ? estudiantes.map(u=>{
@@ -3215,7 +3218,10 @@ async function abrirModalAlumnosCurso(cursoId){
     '</div>';
   playModal(); document.body.appendChild(overlay);
 
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student')
+  // soloCursosExternos excluidos: son compradores de un enlace de un solo
+  // uso (ver "Compradores externos" más abajo, en el mismo modal) — no son
+  // alumnos de la academia y no deben poder tildarse acá.
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos)
     .slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   const grid = $('caAlumnosGrid');
   grid.innerHTML = estudiantes.length
@@ -3265,7 +3271,7 @@ async function caGuardarAlumnosInternos(cursoId){
    lógica entre los dos. Al tildar, además de cursosAsignados se fija
    cursosVencimientos[cursoId] = ahora+1 año; al destildar se lo borra. */
 async function sincronizarAlumnosAccesoCurso(cursoId, alumnosSeleccionados){
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student');
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos);
   const cambios = estudiantes.map(u=>{
     const tenia = (u.cursosAsignados||[]).includes(cursoId);
     const debeTener = alumnosSeleccionados.includes(u.id);
@@ -3409,7 +3415,22 @@ function caFilaCompradorHtml(a, cursoId){
     (!a.activo
       ? '<button class="btn sm sec" onclick="caToggleAcceso(\''+a.id+'\',true,\''+cursoId+'\')">Reactivar</button>'
       : '<button class="btn sm warn" onclick="caToggleAcceso(\''+a.id+'\',false,\''+cursoId+'\')">Revocar</button>')+
+    // Borrado DEFINITIVO de la cuenta (no solo revocar el acceso a este
+    // curso) — para cuentas de prueba como esta, o compradores que piden
+    // que se les borren los datos. a.userId puede venir vacío si la cuenta
+    // ya fue eliminada por otra vía; en ese caso no se muestra el botón.
+    (a.userId ? '<button class="btn sm" style="color:#ff6b6b;" title="Eliminar la cuenta definitivamente, no solo revocar este curso" onclick="caEliminarComprador(\''+a.userId+'\',\''+esc(a.nombre)+'\',\''+cursoId+'\')">🗑</button>' : '')+
   '</div>';
+}
+
+async function caEliminarComprador(userId, nombre, cursoId){
+  if(!confirm(`¿Eliminar DEFINITIVAMENTE la cuenta de "${nombre}"?\n\nEsto borra la cuenta y su acceso a este y a cualquier otro curso de forma permanente — no se puede deshacer.`)) return;
+  try {
+    await apiJSON('DELETE',`/api/users/${userId}`);
+    await cargarDB();
+    showToast(`${nombre} eliminado definitivamente.`,'ok');
+    await caCargarAccesosExternos(cursoId); // refresca la lista de este modal, si sigue abierto
+  } catch(e){ showToast('Error: '+e.message,'warn'); }
 }
 
 async function caCancelarPendiente(accesoId, cursoId){
