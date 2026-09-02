@@ -439,15 +439,69 @@ select option{background:#131308;color:var(--text);}
 #aulaWrap{display:flex;flex-direction:column;max-width:1040px;margin:0 auto;padding:0 0 40px;
   background:rgba(20,20,20,.5);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
   border:1px solid rgba(255,255,255,.08);}
-#playerWrap{position:relative;width:100%;padding-top:56.25%;background:#000;
-  border-radius:var(--r-lg);overflow:hidden;margin:20px 24px 0;width:calc(100% - 48px);
-  box-shadow:0 12px 40px rgba(0,0,0,.7);}
-#playerWrap iframe,#playerWrap video{position:absolute;inset:0;width:100%;height:100%;border:none;}
-#videoMeta{padding:20px 24px 6px;}
-#videoTitle{font-family:'Sora',sans-serif;font-size:21px;font-weight:700;
-  letter-spacing:-.3px;color:var(--white);margin-bottom:6px;}
-#videoNotes{color:var(--text-2);font-size:13.5px;line-height:1.75;margin-top:8px;}
-#videoList{padding:0;display:flex;flex-direction:column;gap:8px;}
+/* ── Girar vídeo a pantalla completa (propio, sin depender de la Fullscreen
+   API del navegador) — usado solo por #cxPlayerWrap (Cursos Exclusivos).
+   Las clases de nivel/bonus/calentamiento ya no usan reproductor
+   incrustado (ver .video-thumb-card más abajo), así que #playerWrap no
+   existe más — se dejó de generar en construirBloqueVideos(). ──────────
+   El botón nativo de "pantalla completa" de YouTube, dentro de un iframe
+   cross-origin, en muchos móviles NO dispara fullscreenchange en nuestro
+   documento (usa su propio fullscreen nativo de <video>, invisible desde
+   afuera) — por eso la app no podía levantar el bloqueo de orientación a
+   tiempo. En vez de depender de eso, este botón gira el PROPIO contenedor
+   (#cxPlayerWrap) por CSS — sin mover el iframe de sitio (así no se
+   recarga el vídeo) y con !important para blindarlo contra cualquier otra
+   regla de la hoja de estilos. Funciona igual en cualquier navegador, sin
+   permisos ni soporte de API especiales; si el navegador además soporta
+   de verdad Fullscreen/Orientation API, se piden también como bonus (no
+   estorba si fallan). */
+.video-rotate-btn{position:absolute;bottom:10px;right:10px;z-index:5;
+  width:38px;height:38px;border-radius:9px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(0,0,0,.55);color:#fff;font-size:17px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;line-height:1;}
+.video-rotate-btn:active{background:rgba(0,0,0,.75);}
+#cxPlayerWrap.video-girado{
+  position:fixed !important;inset:auto !important;top:50% !important;left:50% !important;
+  width:100vh !important;height:100vw !important;max-width:none !important;max-height:none !important;
+  padding-top:0 !important;aspect-ratio:auto !important;margin:0 !important;
+  border-radius:0 !important;box-shadow:none !important;
+  transform:translate(-50%,-50%) rotate(90deg) !important;transform-origin:center center !important;
+  z-index:99999 !important;background:#000;}
+body.video-girado-activo{overflow:hidden !important;}
+.video-rot-exit{position:fixed;top:14px;right:14px;z-index:100000;
+  width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.6);
+  color:#fff;border:1px solid rgba(255,255,255,.3);font-size:18px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;}
+
+/* ── Miniaturas horizontales de vídeo (Clases/Bonus/Calentamientos) ──
+   Reemplazan el reproductor incrustado: cada clase es una tarjeta con
+   miniatura que, al tocarla, abre el vídeo directamente en YouTube (app
+   o pestaña externa) — evita los problemas de rotación/salida del
+   reproductor embebido en móviles. Ver abrirVideoExterno() en portal.js. */
+.video-thumb-card{position:relative;border-radius:var(--r);overflow:hidden;cursor:pointer;
+  background:var(--card-bg);border:1px solid var(--card-border);transition:all .2s;}
+.video-thumb-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.video-thumb-card.locked{cursor:not-allowed;opacity:.55;}
+.video-thumb-img{position:relative;width:100%;aspect-ratio:16/9;background-size:cover;
+  background-position:center;background-color:var(--bg);
+  background-image:linear-gradient(135deg,rgba(226,144,35,.16),rgba(0,0,0,.35));
+  display:flex;align-items:center;justify-content:center;}
+.video-thumb-play{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);
+  border:1.5px solid rgba(255,255,255,.6);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:15px;padding-left:2px;flex:0 0 auto;}
+.video-thumb-card:hover .video-thumb-play{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.video-thumb-lock{font-size:26px;}
+.video-thumb-check{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+  background:var(--gold);color:#0a0a0a;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;box-shadow:0 0 8px rgba(226,144,35,.6);}
+.video-thumb-num{position:absolute;top:8px;left:8px;min-width:22px;height:22px;padding:0 6px;
+  border-radius:11px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.video-thumb-body{padding:10px 12px;}
+.video-thumb-title{font-size:13px;font-weight:600;color:var(--white);}
+.video-thumb-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+#videoList{padding:0;display:flex;flex-direction:column;gap:12px;}
 .video-item{position:relative;border-radius:var(--r);padding:14px 16px;cursor:pointer;
   background:var(--card-bg);border:1px solid var(--card-border);
   transition:all .2s;display:flex;flex-direction:column;gap:8px;}
@@ -514,14 +568,6 @@ select option{background:#131308;color:var(--text);}
 .clase-mini-label{font-size:9.5px;font-weight:700;color:var(--white);white-space:nowrap;}
 .clase-mini .vi-done{top:3px;right:3px;width:6px;height:6px;}
 
-/* ── Barra de estado interactiva bajo el vídeo ("Bachata · Nivel 1 — Clase 1") ── */
-.video-status-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:10px 16px;margin:0;flex-wrap:wrap;
-  color:var(--text-2);font-size:13px;font-weight:600;text-align:left;
-  background:transparent;border-top:2px solid transparent;
-  transition:background .2s,border-color .2s;}
-.video-status-bar:hover{background:rgba(226,144,35,.05);border-top-color:var(--gold);}
-.video-status-bar .clase-actual{color:var(--gold);font-weight:700;}
 
 /* ── Separador de sección centrado, con líneas a los lados ── */
 .section-divider{display:flex;align-items:center;gap:16px;margin:8px 0 20px;}
@@ -530,7 +576,6 @@ select option{background:#131308;color:var(--text);}
   font-weight:700;white-space:nowrap;text-transform:uppercase;}
 @media(max-width:600px){
   #aulaWrap{padding:0 0 24px;}
-  #playerWrap{margin:14px 14px 0;width:calc(100% - 28px);}
   #videoListRow{flex-direction:column;padding:14px;}
 }
 

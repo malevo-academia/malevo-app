@@ -1137,6 +1137,55 @@ tbody tr:hover td{background:rgba(226,144,35,.03);}
 #maCxPlayerWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;
   border-radius:12px;overflow:hidden;margin-bottom:14px;display:none;}
 #maCxPlayerWrap iframe,#maCxPlayerWrap video{position:absolute;inset:0;width:100%;height:100%;border:none;}
+
+/* ── Girar vídeo a pantalla completa (espejo de portal.html/portal.js) ──
+   Ver el comentario completo en portal.html — mismo botón propio por CSS,
+   no depende de la Fullscreen API del iframe de YouTube. */
+.video-rotate-btn{position:absolute;bottom:10px;right:10px;z-index:5;
+  width:38px;height:38px;border-radius:9px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(0,0,0,.55);color:#fff;font-size:17px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer;line-height:1;}
+.video-rotate-btn:active{background:rgba(0,0,0,.75);}
+#maCxPlayerWrap.video-girado{
+  position:fixed !important;inset:auto !important;top:50% !important;left:50% !important;
+  width:100vh !important;height:100vw !important;max-width:none !important;max-height:none !important;
+  padding-top:0 !important;aspect-ratio:auto !important;margin:0 !important;
+  border-radius:0 !important;box-shadow:none !important;
+  transform:translate(-50%,-50%) rotate(90deg) !important;transform-origin:center center !important;
+  z-index:99999 !important;background:#000;}
+body.video-girado-activo{overflow:hidden !important;}
+.video-rot-exit{position:fixed;top:14px;right:14px;z-index:100000;
+  width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.6);
+  color:#fff;border:1px solid rgba(255,255,255,.3);font-size:18px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;}
+
+/* ── Miniaturas horizontales de vídeo (espejo de portal.html) — Clases,
+   Bonus y Calentamientos de "Ver como alumno" ya no usan reproductor
+   incrustado (maPlayerWrap se eliminó): cada clase es una tarjeta con
+   miniatura que simula abrir el vídeo en YouTube externo al tocarla. */
+.video-thumb-card{position:relative;border-radius:var(--r);overflow:hidden;cursor:pointer;
+  background:var(--card-bg);border:1px solid var(--card-border);transition:all .2s;}
+.video-thumb-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.video-thumb-card.locked{cursor:not-allowed;opacity:.55;}
+.video-thumb-img{position:relative;width:100%;aspect-ratio:16/9;background-size:cover;
+  background-position:center;background-color:var(--bg);
+  background-image:linear-gradient(135deg,rgba(226,144,35,.16),rgba(0,0,0,.35));
+  display:flex;align-items:center;justify-content:center;}
+.video-thumb-play{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);
+  border:1.5px solid rgba(255,255,255,.6);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:15px;padding-left:2px;flex:0 0 auto;}
+.video-thumb-card:hover .video-thumb-play{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.video-thumb-lock{font-size:26px;}
+.video-thumb-check{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+  background:var(--gold);color:#0a0a0a;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;box-shadow:0 0 8px rgba(226,144,35,.6);}
+.video-thumb-num{position:absolute;top:8px;left:8px;min-width:22px;height:22px;padding:0 6px;
+  border-radius:11px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.video-thumb-body{padding:10px 12px;}
+.video-thumb-title{font-size:13px;font-weight:600;color:var(--white);}
+.video-thumb-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
 .curso-detalle-video-row{display:flex;align-items:center;gap:12px;padding:11px 12px;
   border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);
   cursor:pointer;margin-bottom:8px;transition:all .18s;}

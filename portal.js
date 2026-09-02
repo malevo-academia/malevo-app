@@ -105,7 +105,6 @@ let myClasses     = [];     // clases asignadas por admin
 let activeView    = null;
 let activeDisciplina = null;
 let activeNivel   = null;
-let activeVideoId = null;
 
 /* ── Utils ── */
 function $(id){ return document.getElementById(id); }
@@ -481,11 +480,13 @@ async function arrancarPortal(){
   }
 
   // Si venimos de canjear un token de curso externo (curso-acceso.html
-  // redirige con "?curso=desbloqueado"), priorizar Cursos Exclusivos para
-  // que el alumno vea de inmediato lo que acaba de desbloquear — incluso
-  // si su perfil todavía no está completo (eso lo puede terminar después
-  // desde Mi Perfil, no bloquea ver el curso que ya pagó).
+  // redirige con "?curso=desbloqueado&cursoId=..."), priorizar Cursos
+  // Exclusivos para que el alumno vea de inmediato lo que acaba de
+  // desbloquear — incluso si su perfil todavía no está completo (eso lo
+  // puede terminar después desde Mi Perfil, no bloquea ver el curso que
+  // ya pagó).
   const _paramsInicio = new URLSearchParams(window.location.search);
+  const _cursoRecienDesbloqueadoId = _paramsInicio.get('curso')==='desbloqueado' ? _paramsInicio.get('cursoId') : '';
   if (currentUser.soloCursosExternos){
     // Nunca pasan por Perfil: no los interesa ni necesitan completarlo.
     pNavigate('cursos');
@@ -497,12 +498,27 @@ async function arrancarPortal(){
     pNavigate('inicio');
   }
 
+  // Sin pasos intermedios: en vez de dejar al comprador parado en la LISTA
+  // de Cursos Exclusivos teniendo que encontrar y tocar su propio curso,
+  // se lo abrimos directo (modal + primer vídeo listo) apenas cae al
+  // portal. Es un overlay propio (ver cxAbrirCurso en la sección de Cursos
+  // Exclusivos), así que no depende de que pNavigate('cursos') ya haya
+  // terminado de pintar la lista de abajo.
+  if (_cursoRecienDesbloqueadoId){
+    _abrirCursoDesbloqueadoDirecto(_cursoRecienDesbloqueadoId);
+  }
+
   // Prompt de instalación PWA — solo para cuentas "solo cursos" (ver
   // mostrarPromptInstalarPWA() más abajo, cerca del registro del Service
-  // Worker). Con un pequeño delay para no competir con el toast de
-  // "¡Curso desbloqueado!" que dispara _avisarCursoDesbloqueado() más abajo.
+  // Worker). Delay un poco mayor que antes para no competir con la
+  // apertura del curso/reproductor de arriba — primero ve su contenido
+  // listo, después se le ofrece instalar la app. Si viene de canjear un
+  // curso recién (_cursoRecienDesbloqueadoId), se fuerza el prompt aunque
+  // ya hubiera un "ahora no"/instalación previa marcada en este navegador
+  // — cubre el caso de quien desinstaló la app y quiere volver a
+  // instalarla al sumar otro curso.
   if (currentUser.soloCursosExternos){
-    setTimeout(mostrarPromptInstalarPWA, 1400);
+    setTimeout(function(){ mostrarPromptInstalarPWA(!!_cursoRecienDesbloqueadoId); }, 2200);
   }
 
   // Notificaciones push: no debe bloquear ni romper el arranque del portal
@@ -536,18 +552,40 @@ function _avisarRegresoDeStripe(){
 }
 
 /* Toast tras canjear un token de acceso a curso externo (ver curso-acceso.html
-   → redirige a /portal.html?curso=desbloqueado). Se limpia el parámetro para
-   que no reaparezca el aviso si el alumno recarga la página. */
+   → redirige a /portal.html?curso=desbloqueado&cursoId=...). Se limpian
+   ambos parámetros para que no vuelva a abrirse el curso ni a reaparecer
+   el aviso si el alumno recarga la página. */
 function _avisarCursoDesbloqueado(){
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('curso') !== 'desbloqueado') return;
-    showToast('¡Curso desbloqueado! Ya está disponible en Cursos Exclusivos 🎉','ok',5000);
+    showToast('¡Curso desbloqueado! Ya está listo para ver 🎉','ok',4000);
     params.delete('curso');
+    params.delete('cursoId');
     const query = params.toString();
     const nuevaUrl = window.location.pathname + (query ? '?'+query : '');
     window.history.replaceState({}, '', nuevaUrl);
   } catch(e) { /* no crítico */ }
+}
+
+/* Abre directo el detalle de un curso recién desbloqueado (sin que el
+   comprador tenga que buscarlo en la lista de Cursos Exclusivos) y, si
+   tiene al menos un vídeo cargado, lo deja listo/reproduciendo — ver
+   cxAbrirCurso()/cxPlayVideo() más abajo, en la sección de Cursos
+   Exclusivos. Se llama desde arrancarPortal() apenas cae "?cursoId=...". */
+async function _abrirCursoDesbloqueadoDirecto(cursoId){
+  try {
+    if (!allCursos.length){
+      const r = await fetch('/api/cursos', {credentials:'same-origin'});
+      if (r.ok) allCursos = await r.json();
+    }
+    const c = (allCursos||[]).find(x => x.id===cursoId);
+    if (!c) return; // link viejo/curso borrado — el alumno igual ve la lista de Cursos Exclusivos
+    cxAbrirCurso(cursoId);
+    if (c.tieneAcceso!==false && (c.videos||[]).length){
+      cxPlayVideo(cursoId, 0);
+    }
+  } catch(e) { /* si falla, queda igual la lista de Cursos Exclusivos como respaldo */ }
 }
 
 /* ── Recargar clases y perfil del alumno desde el servidor ── */
@@ -1003,13 +1041,9 @@ function construirBloqueVideos(){
   if (calent.length){
     html += `<div class="card reveal-up" style="margin-bottom:20px;padding:22px 20px;">
       <div class="h2" style="margin-bottom:14px;">🔥 Mis Calentamientos y Estiramientos</div>
-      <p style="font-size:12px;color:var(--muted);margin:-8px 0 14px;">Independiente de tus niveles — úsalos antes de ensayar.</p>
-      <div data-stagger style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-        ${calent.map((v,i)=>`<div class="video-item calent-item ${i%2===0?'reveal-left':'reveal-right'}" style="--rv-dist:100px;" onclick="reproducirEnHub('${v.id}')">
-          ${esVisto(v.id)?'<span class="vi-done" title="Ya lo hiciste"></span>':''}
-          <div class="vi-title">${esc(v.titulo)}</div>
-          <div class="vi-disc">Calentamiento</div>
-        </div>`).join('')}
+      <p style="font-size:12px;color:var(--muted);margin:-8px 0 14px;">Independiente de tus niveles — úsalos antes de ensayar. Se abren directo en YouTube.</p>
+      <div data-stagger style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+        ${calent.map((v,i)=>_tarjetaVideoThumb(v,{completado:esVisto(v.id), sub:'Calentamiento', clase:i%2===0?'reveal-left':'reveal-right'})).join('')}
       </div>
     </div>`;
   }
@@ -1078,24 +1112,8 @@ function construirBloqueVideos(){
         </div>
         <button class="btn sm sec" onclick="cerrarPanelVideo()" style="flex:0 0 auto;white-space:nowrap;">← Volver a Cursos</button>
       </div>
-      <div id="playerWrap">
-        <div id="playerPlaceholder" style="position:absolute;inset:0;display:flex;flex-direction:column;
-          align-items:center;justify-content:center;color:var(--muted);gap:14px;background:#0e0e0e;">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".8" opacity=".2">
-            <circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16" fill="currentColor" opacity=".5"/>
-          </svg>
-          <span style="font-size:14px;letter-spacing:.5px;">Selecciona una clase para empezar</span>
-        </div>
-      </div>
-      <div id="videoMeta">
-        <div id="videoTitle" style="display:none;"></div>
-        <div id="videoNotes"></div>
-      </div>
-      <div id="videoCurrentLabel" class="video-status-bar" style="display:none;">
-        <span id="videoCurrentLabelText"></span>
-      </div>
       <div id="videoListRow" style="display:flex;gap:16px;align-items:flex-start;padding:20px 24px;">
-        <div id="videoList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="videoList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;"></div>
       </div>
     </div>
   </div>`;
@@ -1176,11 +1194,37 @@ function nivelesToAcceso(disc){
   return nivelesArr(valor);
 }
 
+/* ── Tarjeta con miniatura horizontal para un vídeo (clase/bonus/
+   calentamiento). Reemplaza el reproductor incrustado: al tocarla, abre
+   el vídeo directamente en YouTube (app o pestaña externa) — ver
+   abrirVideoExterno(). Si el admin no cargó "URL de la imagen" para ese
+   vídeo, se muestra un fondo genérico (degradé) en vez de romper el
+   layout. ── */
+function _tarjetaVideoThumb(v, opts){
+  opts = opts || {};
+  const locked = !!opts.locked;
+  const bg = v.imagenMiniatura ? ` style="background-image:url('${esc(v.imagenMiniatura)}');"` : '';
+  const titulo = opts.tituloOverride || v.titulo;
+  const claseExtra = opts.clase ? ' '+opts.clase : '';
+  return `<div class="video-thumb-card${locked?' locked':''}${claseExtra}"
+      ${locked?'':`data-vid="${v.id}" onclick="abrirVideoExterno('${v.id}')"`}
+      ${locked?'title="Completa el vídeo anterior para desbloquear esta clase"':''}>
+    <div class="video-thumb-img"${bg}>
+      ${locked ? '<span class="video-thumb-lock">🔒</span>' : '<span class="video-thumb-play">▶</span>'}
+      ${(!locked && opts.numero!=null) ? `<span class="video-thumb-num">${opts.numero}</span>` : ''}
+      ${(!locked && opts.completado) ? '<span class="video-thumb-check">✓</span>' : ''}
+    </div>
+    <div class="video-thumb-body">
+      <div class="video-thumb-title">${esc(titulo)}</div>
+      ${opts.sub ? `<div class="video-thumb-sub">${esc(opts.sub)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 /* ── Construye el HTML de la lista de vídeos de un nivel (clases + bonus),
    aplicando los candados de la mecánica 2x2 (clases) y del 100% (bonus).
-   Función compartida entre mostrarListaNivel() (que además dispara la
-   reproducción) y el refresco silencioso tras cada vídeo completado (que
-   NO debe interrumpir lo que se está reproduciendo). ── */
+   Función compartida entre mostrarListaNivel() y el refresco silencioso
+   tras cada vídeo abierto/completado (ver abrirVideoExterno()). ── */
 function _construirListaNivelHTML(disc, nivel){
   const vids = videosDeNivel(disc,nivel);
   if (!vids.length){
@@ -1190,56 +1234,36 @@ function _construirListaNivelHTML(disc, nivel){
   const bonus = bonusDeNivel(disc,nivel);
   const bonusListo = bonusNivelDesbloqueado(disc,nivel);
 
-  let html = '<div style="display:flex;flex-direction:column;gap:8px;">' + vids.map((v,i)=>{
-    const completo = esCompletado(v.id);
-    if (i>=desbloqueados){
-      return `<div class="video-row" style="opacity:.55;cursor:not-allowed;" title="Completa el vídeo anterior para desbloquear esta clase">
-        <div class="video-row-num">🔒</div>
-        <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(v.titulo)}</div></div>
-      </div>`;
-    }
-    return `<div class="video-row${completo?' visto':''}" data-vid="${v.id}" onclick="playVideo('${v.id}')">
-      ${completo?'<span class="vi-done" title="Ya la completaste"></span>':''}
-      <div class="video-row-num">${i+1}</div>
-      <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(v.titulo)}</div></div>
-      <span class="video-row-arrow">▶</span>
-    </div>`;
+  let html = '<div style="display:flex;flex-direction:column;gap:12px;">' + vids.map((v,i)=>{
+    const locked = i>=desbloqueados;
+    return _tarjetaVideoThumb(v, {locked, numero:i+1, completado:esCompletado(v.id)});
   }).join('') + '</div>';
 
   if (bonus.length){
     html += `<div style="display:flex;align-items:center;gap:8px;margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--card-border);">
       <span style="font-size:14px;">🎁</span>
       <span style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:700;">Bonus</span>
-    </div>`;
+    </div><div style="display:flex;flex-direction:column;gap:12px;">`;
     html += bonus.map((bv,i)=>{
       const porRacha = esBonusDesbloqueadoPorRacha(bv.id);
       const desbloqueado = bonusListo || porRacha;
       if (desbloqueado){
-        return `<div class="video-row${esVisto(bv.id)?' visto':''}" data-vid="${bv.id}" onclick="playVideo('${bv.id}')">
-          ${esVisto(bv.id)?'<span class="vi-done" title="Ya lo viste"></span>':''}
-          <div class="video-row-num" style="background:var(--gold);color:#0a0a0a;border-color:transparent;">🎁</div>
-          <div style="flex:1;min-width:0;">
-            <div class="video-row-title">${esc(bv.titulo)}</div>
-            <div class="video-row-sub">Bonus ${i+1} · ${(porRacha && !bonusListo) ? 'Desbloqueado con tu racha 🔥' : 'Desbloqueado'}</div>
-          </div>
-          <span class="video-row-arrow" style="opacity:1;">▶</span>
-        </div>`;
+        return _tarjetaVideoThumb(bv, {completado:esVisto(bv.id),
+          sub:`Bonus ${i+1} · ${(porRacha && !bonusListo) ? 'Desbloqueado con tu racha 🔥' : 'Desbloqueado'}`});
       }
-      return `<div class="video-row" style="opacity:.55;cursor:not-allowed;" title="Completa el 100% de las clases del nivel para desbloquear todo el Bonus">
-        <div class="video-row-num">🔒</div>
-        <div style="flex:1;min-width:0;">
-          <div class="video-row-title">Bonus ${i+1} bloqueado</div>
-          <div class="video-row-sub">Completa el 100% de las clases del nivel (${nivelVideosCompletados(disc,nivel)}/${vids.length})</div>
-        </div>
-      </div>`;
+      return _tarjetaVideoThumb(bv, {locked:true, tituloOverride:`Bonus ${i+1} bloqueado`,
+        sub:`Completa el 100% de las clases del nivel (${nivelVideosCompletados(disc,nivel)}/${vids.length})`});
     }).join('');
+    html += '</div>';
   }
   return html;
 }
 
 /* ── Muestra la lista de vídeos de un nivel en #videoList y reproduce
    el primero pendiente entre los ya desbloqueados (o el último
-   desbloqueado, si ya los completó todos) ── */
+   desbloqueado, si ya los completó todos). Ya no reproduce nada dentro de
+   la página: solo arma la lista de miniaturas — cada una abre YouTube
+   externo al tocarla (ver abrirVideoExterno). ── */
 function mostrarListaNivel(disc, nivel){
   activeDisciplina=disc; activeNivel=nivel;
   const vids = videosDeNivel(disc,nivel);
@@ -1252,12 +1276,6 @@ function mostrarListaNivel(disc, nivel){
   cargarReproductorDrive(disc, nivel);
 
   cont.innerHTML = _construirListaNivelHTML(disc, nivel);
-  if (!vids.length) return;
-
-  const desbloqueados = nivelVideosDesbloqueados(disc,nivel);
-  const disponibles = vids.slice(0, desbloqueados);
-  const primero = disponibles.find(v=>!esCompletado(v.id)) || disponibles[disponibles.length-1];
-  playVideo(primero.id);
 }
 
 /* ── Abre un nivel desde la tarjeta y hace scroll hasta el panel del reproductor ── */
@@ -1316,6 +1334,61 @@ function _onFullscreenChangeOrientacion(){
 ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(ev=>{
   document.addEventListener(ev, _onFullscreenChangeOrientacion);
 });
+
+/* ── Girar vídeo a pantalla completa (control propio) ──────────────────
+   El bloque de arriba (_onFullscreenChangeOrientacion) asume que tocar el
+   botón nativo de pantalla completa DENTRO del iframe de YouTube dispara
+   "fullscreenchange" en NUESTRO documento — en desktop suele pasar, pero en
+   la mayoría de navegadores/PWAs de Android e iOS, YouTube usa su propio
+   fullscreen nativo de <video> dentro de su iframe cross-origin, que nunca
+   se entera nuestra página (por aislamiento cross-origin), así que el
+   evento no llega nunca y el candado de orientación no se levanta.
+   Este botón propio (ver ⤢ en cxPlayerWrap — único reproductor incrustado
+   que queda, el de Cursos Exclusivos) NO depende de eso: en vez de mover
+   el iframe a otro contenedor (eso lo recarga — un iframe pierde su
+   documento al reinsertarse en el DOM), gira el PROPIO wrap (#cxPlayerWrap)
+   con la clase .video-girado, definida con !important en portal.html para
+   blindarla contra cualquier otra regla.
+   Funciona igual en cualquier navegador, sin permisos ni soporte de API
+   especiales. Si el navegador además soporta de verdad Fullscreen/
+   Orientation API, se piden también como bonus (no estorba si fallan). */
+function _girarVideoPantallaCompleta(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if (!wrap || wrap.classList.contains('video-girado')) return;
+  wrap.classList.add('video-girado');
+  document.body.classList.add('video-girado-activo');
+
+  const exitBtn = document.createElement('button');
+  exitBtn.type = 'button';
+  exitBtn.id = 'videoRotExitBtn';
+  exitBtn.className = 'video-rot-exit';
+  exitBtn.title = 'Salir de pantalla completa';
+  exitBtn.setAttribute('aria-label', 'Salir de pantalla completa');
+  exitBtn.textContent = '✕';
+  exitBtn.onclick = function(){ _salirRotacionVideo(wrapId); };
+  document.body.appendChild(exitBtn);
+
+  try{
+    if (wrap.requestFullscreen) wrap.requestFullscreen().catch(()=>{});
+    else if (wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.lock === 'function'){
+      window.screen.orientation.lock('landscape').catch(()=>{});
+    }
+  }catch(e){ /* sin soporte real — la rotación por CSS ya cubre el caso */ }
+}
+function _salirRotacionVideo(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if (wrap) wrap.classList.remove('video-girado');
+  document.body.classList.remove('video-girado-activo');
+  const exitBtn = document.getElementById('videoRotExitBtn');
+  if (exitBtn) exitBtn.remove();
+  try{
+    if (_elementoFullscreenActivo()) (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.unlock === 'function'){
+      window.screen.orientation.unlock();
+    }
+  }catch(e){ /* no crítico */ }
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    "Mi Playlist" — estructura vertical: encabezado (título + logo) →
@@ -1700,40 +1773,28 @@ function cerrarPanelVideo(){
   const wrap=$('aulaWrap'); if (!wrap) return;
   wrap.style.display='none';
   document.body.style.overflow = '';
-  const label=$('videoCurrentLabel'); if (label) label.style.display='none';
   driveDetener();
   const driveWrap=$('drivePlayerWrap'); if (driveWrap) driveWrap.style.display='none';
 }
 
-/* ── Reproduce un vídeo suelto (continuar viendo / calentamiento / taller),
-   reconstruyendo el contexto de lista que corresponda.
-   sinScroll=true → solo precarga el contenido del modal sin abrirlo
-   (se usa al restaurar "continuar viendo" al cargar la página). ── */
+/* ── Punto de entrada de "continuar viendo" / tarjetas de calentamiento.
+   sinScroll=true → solo prepara el estado en silencio (se usa al cargar
+   la página, para que si el alumno abre el nivel más tarde ya esté
+   armada la lista) sin abrir nada ni disparar aperturas externas.
+   Clases/Bonus: abre el modal con la lista de miniaturas del nivel.
+   Calentamientos: ya no tienen lista propia dentro del modal — al no
+   haber reproductor incrustado, tocar la tarjeta abre directo YouTube
+   (ver abrirVideoExterno), igual que cualquier miniatura. ── */
 function reproducirEnHub(id, sinScroll){
   const v = allVideos.find(x=>x.id===id);
   if (!v) return;
 
   if (!v.tipo || v.tipo==='clase' || v.tipo==='bonus'){
     mostrarListaNivel(v.disciplina, v.nivel);
-    playVideo(id); // seleccionar exactamente este, no el primero no-visto
-  } else if (v.tipo==='calentamiento'){
-    driveDetener();
-    const driveWrap=$('drivePlayerWrap'); if (driveWrap) driveWrap.style.display='none';
-    const grupo = calentamientos();
-    if ($('panelVideoTitulo')) $('panelVideoTitulo').textContent = '🔥 Mis Calentamientos y Estiramientos';
-    if ($('panelVideoSub'))    $('panelVideoSub').textContent    = `${grupo.length} vídeo${grupo.length!==1?'s':''}`;
-    const cont=$('videoList');
-    if (cont){
-      cont.innerHTML = grupo.map((gv,i)=>`<div class="video-row${esVisto(gv.id)?' visto':''}" data-vid="${gv.id}" onclick="playVideo('${gv.id}')">
-          ${esVisto(gv.id)?'<span class="vi-done"></span>':''}
-          <div class="video-row-num">${i+1}</div>
-          <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(gv.titulo)}</div></div>
-          <span class="video-row-arrow">▶</span>
-        </div>`).join('');
-    }
-    playVideo(id);
+    if (!sinScroll) abrirModalVideo();
+  } else if (v.tipo==='calentamiento' && !sinScroll){
+    abrirVideoExterno(id);
   }
-  if (!sinScroll) abrirModalVideo();
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2508,19 +2569,35 @@ function cxPlayVideo(cursoId, idx){
       embed = `https://www.youtube-nocookie.com/embed/${vid_}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`;
     }
     const ifr = document.createElement('iframe');
+    ifr.id = 'cxVideoFrameEl';
     ifr.src = embed;
     ifr.allow = 'accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen';
     ifr.allowFullscreen = true;
     wrap.appendChild(ifr);
   } else if (url.match(/\.(mp4|webm|m4v)$/i)){
     const vid_ = document.createElement('video');
+    vid_.id = 'cxVideoFrameEl';
     vid_.src = url; vid_.controls = true; vid_.autoplay = true; vid_.controlsList = 'nodownload';
     vid_.oncontextmenu = e => e.preventDefault();
     wrap.appendChild(vid_);
   } else if (url){
     const ifr = document.createElement('iframe');
+    ifr.id = 'cxVideoFrameEl';
     ifr.src = url; ifr.allowFullscreen = true;
     wrap.appendChild(ifr);
+  }
+  if (url){
+    // Botón propio de girar a pantalla completa — ver _girarVideoPantallaCompleta().
+    // Se agrega siempre que haya vídeo, porque wrap.innerHTML se limpia
+    // por completo en cada cambio de clase.
+    const btnRot = document.createElement('button');
+    btnRot.type = 'button';
+    btnRot.className = 'video-rotate-btn';
+    btnRot.title = 'Girar a pantalla completa';
+    btnRot.setAttribute('aria-label', 'Girar a pantalla completa');
+    btnRot.textContent = '⤢';
+    btnRot.onclick = () => _girarVideoPantallaCompleta('cxPlayerWrap');
+    wrap.appendChild(btnRot);
   }
   wrap.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -2548,8 +2625,7 @@ function marcarVisto(id){
   try { localStorage.setItem(_watchedKey(), JSON.stringify(m)); } catch {}
   _actualizarRachaServidor(); // fire-and-forget: sube/actualiza la racha semanal (antigua, en semanas)
   // OJO: la tarjeta "Racha" (5 días + fueguito) NO se actualiza acá — solo cuenta
-  // cuando el vídeo se mira COMPLETO (ver _marcarVideoCompletado, disparado por
-  // el evento "ended" del reproductor en playVideo()).
+  // para clases principales, disparado directamente desde abrirVideoExterno().
 }
 
 /* ── Vídeos COMPLETADOS (mirados hasta el final) — distinto de "vistos"
@@ -2571,16 +2647,6 @@ function marcarCompletado(id){
   m[id]=Date.now();
   try { localStorage.setItem(_completedKey(), JSON.stringify(m)); } catch {}
   return true;
-}
-
-/* Se llama cuando el reproductor confirma que el vídeo terminó de verse
-   completo (evento "ended" nativo, o del SDK de YouTube/Vimeo). Solo
-   entonces cuenta como "día visto" para la tarjeta Racha. */
-function _marcarVideoCompletado(id){
-  if (activeVideoId!==id) return; // el alumno ya cambió de vídeo, no cuenta
-  _actualizarRachaDiaria();
-  _actualizarFuegoDiario(); // asegura que el fueguito nunca quede en 0 si ya hubo consumo de vídeo hoy
-  _procesarDesbloqueo2x2(id);
 }
 
 /* ── Racha de práctica — GLOBAL, persistida en el perfil del alumno (servidor) ──
@@ -3145,7 +3211,7 @@ function cerrarModalDesbloqueo(){
 function continuarDesdeModalDesbloqueo(){
   const siguienteId = _desbloqueoModalSiguienteId;
   cerrarModalDesbloqueo();
-  if (siguienteId) playVideo(siguienteId);
+  if (siguienteId) abrirVideoExterno(siguienteId);
 }
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape'){
@@ -3313,157 +3379,51 @@ function driveDetener(){
   _driveIndex = -1;
 }
 
-/* ── Detección de "vídeo completo" para la tarjeta Racha ──────────────────
-   Se apoya en los SDKs oficiales de YouTube/Vimeo (evento "ended"), y en
-   el evento nativo "ended" para vídeo propio (.mp4/.webm/.m4v). Si el
-   vídeo viene de otra fuente sin API conocida, no hay forma de detectar
-   cuándo termina, así que ese caso no puede sumar día de racha. ── */
-let _ytApiListo=false, _ytApiCargando=false;
-function _cargarYoutubeApiSiHaceFalta(cb){
-  if (_ytApiListo || (window.YT && window.YT.Player)){ _ytApiListo=true; cb(); return; }
-  const prevCb=window.onYouTubeIframeAPIReady;
-  window.onYouTubeIframeAPIReady=function(){
-    _ytApiListo=true;
-    if (typeof prevCb==='function') try{ prevCb(); }catch{}
-    cb();
-  };
-  if (!_ytApiCargando){
-    _ytApiCargando=true;
-    const s=document.createElement('script');
-    s.src='https://www.youtube.com/iframe_api';
-    document.head.appendChild(s);
+/* ── Convierte la URL guardada (embed de YouTube, youtu.be, Vimeo, mp4…)
+   en la URL "de mirar" que se abre externamente: para YouTube, el watch
+   normal (que en el móvil ofrece abrir en la app oficial); para el resto,
+   se deja la URL tal cual. ── */
+function _urlVideoExterno(v){
+  const raw = (v && v.url) || '';
+  if (raw.includes('youtube.com/embed/')){
+    const vid_ = raw.split('youtube.com/embed/')[1].split('?')[0];
+    return `https://www.youtube.com/watch?v=${vid_}`;
   }
-}
-function _wireYoutubeCompletado(iframeEl, videoId){
-  _cargarYoutubeApiSiHaceFalta(()=>{
-    if (!document.body.contains(iframeEl)) return; // el alumno ya cambió de vídeo
-    try {
-      new YT.Player(iframeEl, {
-        events:{ onStateChange:ev=>{ if (ev.data===YT.PlayerState.ENDED) _marcarVideoCompletado(videoId); } }
-      });
-    } catch {}
-  });
-}
-let _vimeoApiCargando=false;
-function _cargarVimeoApiSiHaceFalta(cb){
-  if (window.Vimeo && window.Vimeo.Player){ cb(); return; }
-  if (!_vimeoApiCargando){
-    _vimeoApiCargando=true;
-    const s=document.createElement('script');
-    s.src='https://player.vimeo.com/api/player.js';
-    s.onload=cb;
-    document.head.appendChild(s);
-  } else {
-    const t=setInterval(()=>{ if (window.Vimeo && window.Vimeo.Player){ clearInterval(t); cb(); } },200);
+  if (raw.includes('youtu.be/')){
+    const vid_ = raw.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/watch?v=${vid_}`;
   }
-}
-function _wireVimeoCompletado(iframeEl, videoId){
-  _cargarVimeoApiSiHaceFalta(()=>{
-    if (!document.body.contains(iframeEl)) return;
-    try {
-      const player=new Vimeo.Player(iframeEl);
-      player.on('ended', ()=>_marcarVideoCompletado(videoId));
-    } catch {}
-  });
+  return raw;
 }
 
-function playVideo(id){
-  activeVideoId=id;
-  const v=allVideos.find(x=>x.id===id); if(!v) return;
+/* ── Abre un vídeo de forma EXTERNA (app/pestaña de YouTube) en vez de
+   reproducirlo incrustado en la página — evita los problemas de rotación
+   y de "no poder salir" del reproductor embebido en móviles.
+   Sin reproductor propio ya no hay forma de detectar el final real del
+   vídeo, así que el progreso se registra al tocar la miniatura: para
+   clases principales dispara la misma mecánica de desbloqueo 2x2/racha
+   que antes esperaba al evento "ended", y para bonus/calentamientos
+   simplemente marca "visto", igual que ya se hacía. ── */
+function abrirVideoExterno(id){
+  const v = allVideos.find(x=>x.id===id); if (!v) return;
 
-  marcarVisto(id);
   setLastVideoId(id);
+  marcarVisto(id);
 
-  // Marcar activo (y visto) en la cuadrícula de tarjetas y en las filas de lista.
-  // Las clases principales ('clase') NO se marcan como vistas al solo hacer clic:
-  // su check depende de esCompletado (ver _construirListaNivelHTML), para no
-  // mostrar un check prematuro antes de terminar el vídeo. Bonus/calentamientos
-  // conservan el marcado inmediato por clic (comportamiento previo).
   const esClasePrincipal = !v.tipo || v.tipo==='clase';
-  document.querySelectorAll('.video-item, .video-row, .clase-mini').forEach(el=>{
-    const activo = el.dataset.vid===id;
-    el.classList.toggle('playing', activo);
-    el.classList.toggle('active', activo);
-    if (activo && !esClasePrincipal && !el.classList.contains('visto')){
-      el.classList.add('visto');
-      if (!el.querySelector('.vi-done')){
-        const dot=document.createElement('span');
-        dot.className='vi-done'; dot.title='Ya la viste';
-        el.prepend(dot);
-      }
-    }
-  });
-
-  const title=$('videoTitle'); const notes=$('videoNotes');
-  if(title){ title.style.display=''; title.textContent=v.titulo; }
-  if(notes) notes.textContent=v.notas||'';
-
-  const label=$('videoCurrentLabel');
-  const labelText=$('videoCurrentLabelText');
-  if (label && labelText){
-    if (!v.tipo || v.tipo==='clase'){
-      const lista = videosDeNivel(v.disciplina, v.nivel);
-      const posicion = lista.findIndex(x=>x.id===v.id) + 1;
-      label.style.display='flex';
-      labelText.innerHTML = `${esc(v.disciplina)} · ${nivelLabel(v.nivel)} — <span class="clase-actual">Clase ${posicion||1}</span>`;
-    } else {
-      label.style.display='none';
-    }
+  if (esClasePrincipal){
+    _actualizarRachaDiaria();
+    _actualizarFuegoDiario();
+    _procesarDesbloqueo2x2(id); // ya refresca #videoList si el nivel activo coincide
+  } else if (activeDisciplina && activeNivel && $('videoList')){
+    // Bonus/calentamiento no pasan por _procesarDesbloqueo2x2 — si la
+    // lista del nivel activo está abierta, se refresca igual para que el
+    // check de "visto" se vea al instante.
+    $('videoList').innerHTML = _construirListaNivelHTML(activeDisciplina, activeNivel);
   }
 
-  const wrap=$('playerWrap'); if(!wrap) return;
-  const ph=$('playerPlaceholder'); if(ph) ph.remove();
-  wrap.querySelectorAll('iframe,video').forEach(e=>e.remove());
-
-  const url=v.url||'';
-  if(url.includes('youtube.com/embed')||url.includes('youtu.be')||url.includes('vimeo.com')){
-    let embed=url;
-    // rel=0 + modestbranding=1 + iv_load_policy=3: al ser vídeos sueltos
-    // (no playlist), evita que al terminar o pausar aparezcan
-    // recomendaciones de otros canales o del historial personal del
-    // alumno. Se mantiene el dominio youtube.com (no youtube-nocookie)
-    // porque _wireYoutubeCompletado depende de la API oficial de YouTube
-    // para detectar el fin del vídeo y marcar la clase como completada.
-    if(url.includes('youtu.be/')){ const vid_=url.split('youtu.be/')[1].split('?')[0]; embed=`https://www.youtube.com/embed/${vid_}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`; }
-    else if(url.includes('youtube.com/watch')){ const p=new URLSearchParams(url.split('?')[1]); embed=`https://www.youtube.com/embed/${p.get('v')}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`; }
-    else if(url.includes('youtube.com/embed')){
-      const base = url.split('?')[0];
-      embed = `${base}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`;
-    }
-    const esYouTube=embed.includes('youtube.com/embed');
-    const esVimeo=embed.includes('vimeo.com');
-    if (esYouTube) embed += (embed.includes('?')?'&':'?')+'enablejsapi=1';
-    const ifr=document.createElement('iframe');
-    ifr.id='videoFrameEl';
-    ifr.src=embed;
-    ifr.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen';
-    ifr.allowFullscreen=true;
-    ifr.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:none;';
-    wrap.appendChild(ifr);
-    if (esYouTube) _wireYoutubeCompletado(ifr, id);
-    else if (esVimeo) _wireVimeoCompletado(ifr, id);
-  } else if(url.match(/\.(mp4|webm|m4v)$/i)){
-    const vid_=document.createElement('video');
-    vid_.src=url; vid_.controls=true; vid_.autoplay=true; vid_.controlsList='nodownload';
-    vid_.oncontextmenu=e=>e.preventDefault();
-    vid_.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:#000;';
-    vid_.addEventListener('ended', ()=>_marcarVideoCompletado(id));
-    wrap.appendChild(vid_);
-  } else if(url){
-    const ifr=document.createElement('iframe');
-    ifr.src=url; ifr.allowFullscreen=true;
-    ifr.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:none;';
-    wrap.appendChild(ifr);
-  }
-
-  // Scroll suave al reproductor
-  wrap.scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-function clearPlayer(){
-  const wrap=$('playerWrap'); if(!wrap) return;
-  wrap.querySelectorAll('iframe,video').forEach(e=>e.remove());
-  $('videoTitle').style.display='none'; if($('videoNotes')) $('videoNotes').textContent='';
+  const url = _urlVideoExterno(v);
+  if (url) window.open(url, '_blank', 'noopener');
 }
 
 /* ══════════════════════════════════════════════
@@ -4387,9 +4347,19 @@ window.addEventListener('appinstalled', function(){
   showToast('¡Aplicación instalada! Ya podés abrir Malevo desde tu pantalla de inicio 🎉','ok',5000);
 });
 
-function mostrarPromptInstalarPWA(){
+// forzar=true ignora el "ahora no"/appinstalled guardado en localStorage —
+// se usa al canjear un curso nuevo (ver arrancarPortal), porque ese
+// localStorage vive en el NAVEGADOR y sobrevive a que el alumno desinstale
+// la app real de su pantalla de inicio: sin este bypass, alguien que
+// desinstaló la PWA y vuelve a canjear otro link para reinstalarla se
+// encontraba con que el prompt nunca reaparecía (bug real reportado —
+// "no me deja volver a instalar"), porque quedaba bloqueado para siempre
+// por una marca de una instalación/descarte anterior en ese mismo navegador.
+function mostrarPromptInstalarPWA(forzar){
   if (_pEsStandalone()) return; // ya la tiene instalada y abierta como app
-  try{ if (localStorage.getItem('malevo_instalar_dismiss')==='1') return; }catch(e){}
+  if (!forzar) {
+    try{ if (localStorage.getItem('malevo_instalar_dismiss')==='1') return; }catch(e){}
+  }
   const overlay = $('pInstalarOverlay');
   if (!overlay) return;
   _pInstalarMostrarPasos(_pInstalarDetectarPlataforma());

@@ -1531,6 +1531,10 @@ const server = http.createServer(async (req, res) => {
           id: t.id, cursoId: t.cursoId, estado: activo ? 'activo' : 'revocado',
           nombre: comprador ? comprador.nombre : '(cuenta eliminada)',
           telefono: comprador ? comprador.telefono : '',
+          // userId viaja acá para que el admin pueda borrar DEFINITIVAMENTE la
+          // cuenta de este comprador desde el propio panel (ver caEliminarComprador
+          // en app.js) — antes solo se podía revocar el acceso, no borrar la cuenta.
+          userId: t.userId,
           fecha: t.fechaUsado, expira, activo
         };
       }
@@ -1674,7 +1678,11 @@ const server = http.createServer(async (req, res) => {
       });
       const cookie = `malevo_jwt=${jwt}; HttpOnly; Path=/; Max-Age=${ttl}; SameSite=Lax${cookieSecureFlag(req)}`;
       console.log(`[cursos] "${comprador.nombre}" canjeó su token de acceso a "${curso.nombre}" (vigencia hasta ${comprador.cursosVencimientos[curso.id]}${sesion?', ya logueado':''})`);
-      return json(res,200,{ok:true, nombre:comprador.nombre, cursoNombre:curso.nombre},{'Set-Cookie':cookie});
+      // cursoId viaja en la respuesta para que curso-acceso.html pueda
+      // redirigir al portal directo al detalle de ESTE curso (en vez de
+      // dejar al comprador en la lista de Cursos Exclusivos teniendo que
+      // encontrarlo él mismo) — ver arrancarPortal()/cxAbrirCurso() en portal.js.
+      return json(res,200,{ok:true, nombre:comprador.nombre, cursoId:curso.id, cursoNombre:curso.nombre},{'Set-Cookie':cookie});
     } catch(e) { return json(res,400,{ok:false,error:e.message}); }
   }
 
@@ -2513,6 +2521,14 @@ async function iniciarServidor() {
     console.log(_stripeConfigurado
       ? 'Stripe: configurado (claves detectadas).'
       : 'Stripe: NO configurado — faltan STRIPE_SECRET_KEY/paquete "stripe", o ambos. Los pagos manuales/efectivo funcionan igual.');
+    // Diagnóstico de arranque para PUBLIC_BASE_URL: sin esto, un .env mal
+    // cargado (o un service sin reiniciar tras editarlo) se nota recién
+    // cuando alguien genera un link y ve la IP/puerto local en vez del
+    // dominio público — con este aviso queda claro desde el primer
+    // segundo, en journalctl -u malevo, si la variable llegó bien o no.
+    console.log(process.env.PUBLIC_BASE_URL
+      ? '✓ PUBLIC_BASE_URL activo: ' + process.env.PUBLIC_BASE_URL + ' (todos los enlaces generados usan este dominio).'
+      : '⚠ PUBLIC_BASE_URL no está definida — los enlaces (Cursos Exclusivos, Stripe, etc.) se van a generar con el host/IP de cada request entrante en vez del dominio público. Definila en .env y reiniciá el servicio.');
   });
 }
 iniciarServidor();

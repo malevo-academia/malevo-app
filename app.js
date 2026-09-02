@@ -2527,10 +2527,15 @@ function renderVideos(cont){
   if (_cursosAdminActivo){ renderCursosAdmin(cont); return; }
 
   const vids = (db.videos||[]).filter(v=>!v.tipo||v.tipo==='clase');
+  const bonusVids = (db.videos||[]).filter(v=>v.tipo==='bonus');
   const grupos = [];
   DISCIPLINAS_VIDEO.forEach(disc=>{
     NIVELES.forEach(n=>{
-      grupos.push({disciplina:disc, nivel:n, count: vids.filter(v=>v.disciplina===disc&&v.nivel===n).length});
+      // El contador de la tarjeta suma clases + bonus del nivel (mismo criterio
+      // que "Item 7" en las tarjetas del alumno: vids.length + bonus.length).
+      const count = vids.filter(v=>v.disciplina===disc&&v.nivel===n).length
+                  + bonusVids.filter(v=>v.disciplina===disc&&v.nivel===n).length;
+      grupos.push({disciplina:disc, nivel:n, count});
     });
   });
   const maxCount = Math.max(1, ...grupos.map(g=>g.count));
@@ -2682,12 +2687,14 @@ function renderVideosGrupo(cont){
     .sort((a,b)=>(a.orden||0)-(b.orden||0));
   const bonus = nivel===4 ? [] : (db.videos||[]).filter(v=>v.disciplina===disciplina&&v.nivel===nivel&&v.tipo==='bonus')
     .sort((a,b)=>(a.orden||0)-(b.orden||0));
+  // Subtítulo: clases + bonus del nivel (mismo criterio "Item 7" que las tarjetas del alumno).
+  const totalVids = vids.length + bonus.length;
 
   cont.innerHTML = `<button class="acc-toggle" style="margin-bottom:10px;" onclick="cerrarGrupoVideos()">← Volver a Vídeos</button>
   <div class="section-head">
     <div>
       <div class="h2" style="margin-bottom:4px;">${esc(disciplina)} · ${nivelLabel(nivel)}</div>
-      <div style="font-size:12.5px;color:var(--muted);">${vids.length} vídeo${vids.length!==1?'s':''} en este nivel</div>
+      <div style="font-size:12.5px;color:var(--muted);">${totalVids} vídeo${totalVids!==1?'s':''} en este nivel</div>
     </div>
     <button class="btn" style="background:var(--card-bg);border:1px solid var(--card-border);color:var(--gold);box-shadow:none;"
       onclick="abrirModalVideo(null,'${esc(disciplina)}',${nivel})">+ Nuevo vídeo</button>
@@ -2945,7 +2952,10 @@ function abrirModalCurso(id){
   // no depende del plan ni de las clases asignadas. El único lugar donde se
   // otorga acceso es acá, en el propio curso: se listan TODOS los alumnos
   // (activos e inactivos) y el admin tilda a quién se lo desbloquea.
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student')
+  // soloCursosExternos excluidos: son compradores de un enlace de un solo
+  // uso (ver "Compradores externos" más abajo, en el mismo modal) — no son
+  // alumnos de la academia y no deben poder tildarse acá.
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos)
     .slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   const alumnosHtml = estudiantes.length
     ? estudiantes.map(u=>{
@@ -3099,6 +3109,18 @@ function procesarPortadaUrlCurso(input){
     ? '<img src="'+esc(directa)+'" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer" onerror="cxImgFallback(this)">'
     : '<span style="color:var(--muted);font-size:10px;text-align:center;padding:4px;">Sin imagen</span>';
 }
+/* ── Miniatura horizontal de un vídeo (clase/calentamiento/bonus) — mismo
+   patrón que procesarPortadaUrlCurso(), pero para el campo "URL de la
+   imagen" del modal de Editar contenido. ── */
+function procesarImagenMiniaturaVideo(input){
+  const directa = convertirUrlDriveAImagenDirecta(input.value);
+  if (directa !== input.value) input.value = directa;
+  const preview = $('vImagenPreview');
+  if (!preview) return;
+  preview.innerHTML = directa
+    ? '<img src="'+esc(directa)+'" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer" onerror="cxImgFallback(this)">'
+    : '<span style="color:var(--muted);font-size:9.5px;text-align:center;padding:4px;">Sin imagen</span>';
+}
 /* Fallback compartido para CUALQUIER <img> de portada de curso (preview del
    Admin, tarjetas del Reel, catálogo completo, Ver como alumno): si el link
    de Drive falla (archivo no compartido públicamente, ID inválido, archivo
@@ -3215,7 +3237,10 @@ async function abrirModalAlumnosCurso(cursoId){
     '</div>';
   playModal(); document.body.appendChild(overlay);
 
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student')
+  // soloCursosExternos excluidos: son compradores de un enlace de un solo
+  // uso (ver "Compradores externos" más abajo, en el mismo modal) — no son
+  // alumnos de la academia y no deben poder tildarse acá.
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos)
     .slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   const grid = $('caAlumnosGrid');
   grid.innerHTML = estudiantes.length
@@ -3265,7 +3290,7 @@ async function caGuardarAlumnosInternos(cursoId){
    lógica entre los dos. Al tildar, además de cursosAsignados se fija
    cursosVencimientos[cursoId] = ahora+1 año; al destildar se lo borra. */
 async function sincronizarAlumnosAccesoCurso(cursoId, alumnosSeleccionados){
-  const estudiantes = (db.users||[]).filter(u=>u.role==='student');
+  const estudiantes = (db.users||[]).filter(u=>u.role==='student' && !u.soloCursosExternos);
   const cambios = estudiantes.map(u=>{
     const tenia = (u.cursosAsignados||[]).includes(cursoId);
     const debeTener = alumnosSeleccionados.includes(u.id);
@@ -3409,7 +3434,22 @@ function caFilaCompradorHtml(a, cursoId){
     (!a.activo
       ? '<button class="btn sm sec" onclick="caToggleAcceso(\''+a.id+'\',true,\''+cursoId+'\')">Reactivar</button>'
       : '<button class="btn sm warn" onclick="caToggleAcceso(\''+a.id+'\',false,\''+cursoId+'\')">Revocar</button>')+
+    // Borrado DEFINITIVO de la cuenta (no solo revocar el acceso a este
+    // curso) — para cuentas de prueba como esta, o compradores que piden
+    // que se les borren los datos. a.userId puede venir vacío si la cuenta
+    // ya fue eliminada por otra vía; en ese caso no se muestra el botón.
+    (a.userId ? '<button class="btn sm" style="color:#ff6b6b;" title="Eliminar la cuenta definitivamente, no solo revocar este curso" onclick="caEliminarComprador(\''+a.userId+'\',\''+esc(a.nombre)+'\',\''+cursoId+'\')">🗑</button>' : '')+
   '</div>';
+}
+
+async function caEliminarComprador(userId, nombre, cursoId){
+  if(!confirm(`¿Eliminar DEFINITIVAMENTE la cuenta de "${nombre}"?\n\nEsto borra la cuenta y su acceso a este y a cualquier otro curso de forma permanente — no se puede deshacer.`)) return;
+  try {
+    await apiJSON('DELETE',`/api/users/${userId}`);
+    await cargarDB();
+    showToast(`${nombre} eliminado definitivamente.`,'ok');
+    await caCargarAccesosExternos(cursoId); // refresca la lista de este modal, si sigue abierto
+  } catch(e){ showToast('Error: '+e.message,'warn'); }
 }
 
 async function caCancelarPendiente(accesoId, cursoId){
@@ -3472,6 +3512,22 @@ function abrirModalVideo(id, presetDisc, presetNivel, presetTipo){
     '<input type="text" id="vUrl" value="'+esc(v&&v.url||'')+'" placeholder="https://www.youtube.com/embed/…">'+
     '<small style="color:var(--muted);font-size:11.5px;margin-top:6px;display:block;" id="vUrlHint">'+
       'YouTube: youtube.com/embed/VIDEO_ID · Archivos locales: /videos/nombre.mp4</small>'+
+
+    // Miniatura horizontal (clase, calentamiento, bonus) — se usa en la
+    // lista de miniaturas del alumno en vez del reproductor incrustado.
+    '<label class="label-field" id="vImagenLabel" style="margin-top:14px;">URL de la imagen (miniatura)</label>'+
+    '<div id="vImagenWrap" style="display:flex;align-items:center;gap:14px;">'+
+      '<div id="vImagenPreview" style="width:96px;height:54px;border-radius:8px;overflow:hidden;flex:0 0 auto;'+
+        'background:rgba(255,255,255,.04);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;">'+
+        (v&&v.imagenMiniatura
+          ? '<img src="'+esc(v.imagenMiniatura)+'" style="width:100%;height:100%;object-fit:cover;" referrerpolicy="no-referrer" onerror="cxImgFallback(this)">'
+          : '<span style="color:var(--muted);font-size:9.5px;text-align:center;padding:4px;">Sin imagen</span>')+
+      '</div>'+
+      '<input type="text" id="vImagen" value="'+esc(v&&v.imagenMiniatura||'')+'" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" '+
+        'oninput="procesarImagenMiniaturaVideo(this)" style="flex:1;">'+
+    '</div>'+
+    '<small style="color:var(--muted);font-size:11.5px;margin-top:6px;display:block;" id="vImagenHint">'+
+      'Pegá el link para compartir de Google Drive (o cualquier URL de imagen directa) — se convierte solo al formato correcto.</small>'+
 
     // Notas (clase, calentamiento, bonus)
     '<label class="label-field" id="vNotasLabel">Notas pedagógicas</label>'+
@@ -3542,6 +3598,12 @@ function avToggleTipoVideo(){
   show('vUrlLabel', tipo==='evento' ? 'none':'block');
   const urlInput=$('vUrl'); if (urlInput) urlInput.style.display = tipo==='evento' ? 'none':'block';
 
+  // Miniatura horizontal: mismo criterio que la URL del vídeo — evento
+  // usa su propio flyer (vGrupoEvento) y no necesita este campo aparte.
+  show('vImagenLabel', tipo==='evento' ? 'none':'block');
+  show('vImagenWrap', tipo==='evento' ? 'none':'flex');
+  show('vImagenHint', tipo==='evento' ? 'none':'block');
+
   show('vGrupoDiscNivel', tipo==='clase'||tipo==='bonus' ? 'grid':'none');
   show('vNotasLabel', tipo==='evento' ? 'none':'block');
   const notas=$('vNotas'); if (notas) notas.style.display = tipo==='evento' ? 'none':'block';
@@ -3601,6 +3663,7 @@ async function guardarVideo(id){
     });
   } else {
     data.url=$('vUrl').value.trim();
+    data.imagenMiniatura=convertirUrlDriveAImagenDirecta($('vImagen').value.trim());
     if (tipo==='clase'||tipo==='bonus'){
       data.disciplina=$('vDisc').value;
       data.nivel=parseInt($('vNivel').value);
@@ -3626,9 +3689,30 @@ async function guardarVideo(id){
   } catch(e){ alert('Error: '+e.message); }
 }
 
+/* ── Reordena en 1..N (sin huecos) las clases de un nivel, según el orden
+   que ya tenían entre sí. Se usa después de borrar una clase para que el
+   "orden" nunca quede con saltos (p.ej. 7, 9 tras borrar la 8). Solo toca
+   clases (tipo='clase'/sin tipo) — bonus/calentamiento/evento no usan este
+   campo para numerarse. ── */
+async function renumerarClasesNivel(disciplina, nivel){
+  const clases = (db.videos||[]).filter(v=>v.disciplina===disciplina&&v.nivel===nivel&&(!v.tipo||v.tipo==='clase'))
+    .sort((a,b)=>(a.orden||0)-(b.orden||0));
+  for (let i=0; i<clases.length; i++){
+    const nuevoOrden = i+1;
+    if (clases[i].orden !== nuevoOrden){
+      await apiJSON('PUT',`/api/videos/${clases[i].id}`,{orden:nuevoOrden});
+    }
+  }
+}
+
 async function borrarVideo(id){
   if (!confirm('¿Eliminar este vídeo?')) return;
+  const v = (db.videos||[]).find(x=>x.id===id);
   await apiJSON('DELETE',`/api/videos/${id}`);
+  if (v && (!v.tipo||v.tipo==='clase')){
+    await cargarDB(); // refresca db.videos sin el borrado, para calcular el reordenamiento
+    await renumerarClasesNivel(v.disciplina, v.nivel);
+  }
   await cargarDB(); renderView('videos');
 }
 
@@ -6151,13 +6235,9 @@ async function maRenderVideos(cont){
   if (calent.length){
     html += `<div class="card reveal-up" style="margin-bottom:20px;padding:22px 20px;">
       <div class="h2" style="margin-bottom:14px;">🔥 Mis Calentamientos y Estiramientos</div>
-      <p style="font-size:12px;color:var(--muted);margin:-8px 0 14px;">Independiente de tus niveles — úsalos antes de ensayar.</p>
-      <div data-stagger style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-        ${calent.map((v,i)=>`<div class="video-item calent-item ${i%2===0?'reveal-left':'reveal-right'}" style="--rv-dist:100px;" onclick="maAbrirCalentamiento('${v.id}')">
-          ${maEsCompletado(v.id)?'<span class="vi-done" title="Ya lo hiciste (simulado)"></span>':''}
-          <div class="vi-title">${esc(v.titulo)}</div>
-          <div class="vi-disc">Calentamiento</div>
-        </div>`).join('')}
+      <p style="font-size:12px;color:var(--muted);margin:-8px 0 14px;">Independiente de tus niveles — se abren directo en YouTube (simulado).</p>
+      <div data-stagger style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+        ${calent.map((v,i)=>maTarjetaVideoThumb(v,{completado:maEsCompletado(v.id), sub:'Calentamiento'})).join('')}
       </div>
     </div>`;
   }
@@ -6205,29 +6285,14 @@ async function maRenderVideos(cont){
         </div>
         <button class="btn sm sec" onclick="maCerrarPanelVideo()" style="flex:0 0 auto;white-space:nowrap;">← Volver a Cursos</button>
       </div>
-      <div id="maPlayerWrap" style="position:relative;width:100%;padding-top:56.25%;background:#000;">
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-          color:var(--muted);gap:12px;background:#0e0e0e;">
-          <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".3">
-            <circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16" fill="currentColor"/>
-          </svg>
-          <span style="font-size:13px;">Selecciona una clase</span>
-        </div>
-      </div>
-      <div id="maVideoMeta" style="padding:16px 22px 4px;">
-        <div id="maVideoTitle" style="display:none;font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:var(--white);"></div>
-        <div id="maVideoNotes" style="color:var(--text-2);font-size:13px;line-height:1.7;margin-top:6px;"></div>
-      </div>
-      <div id="maVideoCurrentLabel" class="video-status-bar" style="display:none;">
-        <span id="maVideoCurrentLabelText"></span>
-      </div>
       <div id="maVideoListRow" style="display:flex;flex-direction:column;gap:10px;align-items:stretch;padding:16px 22px;">
         <div style="font-size:11px;color:var(--muted);background:rgba(226,144,35,.06);
           border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;">
-          🧪 Vista previa: al hacer clic en una clase se simula que el alumno terminó de verla,
-          para poder mostrar acá el desbloqueo 2x2, el modal y la tarjeta Racha en tiempo real.
+          🧪 Vista previa: al hacer clic en una miniatura se simula que el alumno abrió/terminó
+          esa clase, para poder mostrar acá el desbloqueo 2x2, el modal y la tarjeta Racha en
+          tiempo real. En el portal real, el clic abre el vídeo en YouTube externo.
         </div>
-        <div id="maVideoList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="maVideoList" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;"></div>
       </div>
     </div>
   </div>
@@ -7191,19 +7256,33 @@ function maCxPlayVideo(cursoId, idx){
     else if (url.includes('youtube.com/watch')){ const p = new URLSearchParams(url.split('?')[1]); embed = `https://www.youtube-nocookie.com/embed/${p.get('v')}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`; }
     else if (url.includes('youtube.com/embed')){ const base = url.split('?')[0]; embed = `${base}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`; }
     const ifr = document.createElement('iframe');
+    ifr.id = 'maCxVideoFrameEl';
     ifr.src = embed;
     ifr.allow = 'accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen';
     ifr.allowFullscreen = true;
     wrap.appendChild(ifr);
   } else if (url.match(/\.(mp4|webm|m4v)$/i)){
     const vid_ = document.createElement('video');
+    vid_.id = 'maCxVideoFrameEl';
     vid_.src = url; vid_.controls = true; vid_.autoplay = true; vid_.controlsList = 'nodownload';
     vid_.oncontextmenu = e => e.preventDefault();
     wrap.appendChild(vid_);
   } else if (url){
     const ifr = document.createElement('iframe');
+    ifr.id = 'maCxVideoFrameEl';
     ifr.src = url; ifr.allowFullscreen = true;
     wrap.appendChild(ifr);
+  }
+  if (url){
+    // Botón propio de girar a pantalla completa — ver _girarVideoPantallaCompleta().
+    const btnRot = document.createElement('button');
+    btnRot.type = 'button';
+    btnRot.className = 'video-rotate-btn';
+    btnRot.title = 'Girar a pantalla completa';
+    btnRot.setAttribute('aria-label', 'Girar a pantalla completa');
+    btnRot.textContent = '⤢';
+    btnRot.onclick = () => _girarVideoPantallaCompleta('maCxPlayerWrap');
+    wrap.appendChild(btnRot);
   }
   wrap.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -7535,6 +7614,71 @@ function _onFullscreenChangeOrientacion(){
   document.addEventListener(ev, _onFullscreenChangeOrientacion);
 });
 
+/* ── Girar vídeo a pantalla completa (control propio) ──────────────────
+   Espejo exacto de portal.js — ver el comentario completo ahí. Alterna
+   una clase CSS directamente sobre el contenedor (wrap) del reproductor,
+   sin mover el iframe de lugar (evita que se recargue el vídeo). */
+function _girarVideoPantallaCompleta(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if (!wrap || wrap.classList.contains('video-girado')) return;
+  wrap.classList.add('video-girado');
+  document.body.classList.add('video-girado-activo');
+
+  const exitBtn = document.createElement('button');
+  exitBtn.type = 'button';
+  exitBtn.id = 'videoRotExitBtn';
+  exitBtn.className = 'video-rot-exit';
+  exitBtn.title = 'Salir de pantalla completa';
+  exitBtn.setAttribute('aria-label', 'Salir de pantalla completa');
+  exitBtn.textContent = '✕';
+  exitBtn.onclick = function(){ _salirRotacionVideo(wrapId); };
+  document.body.appendChild(exitBtn);
+
+  try{
+    if (wrap.requestFullscreen) wrap.requestFullscreen().catch(()=>{});
+    else if (wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.lock === 'function'){
+      window.screen.orientation.lock('landscape').catch(()=>{});
+    }
+  }catch(e){ /* sin soporte real — la rotación por CSS ya cubre el caso */ }
+}
+function _salirRotacionVideo(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if (wrap) wrap.classList.remove('video-girado');
+  document.body.classList.remove('video-girado-activo');
+  const exitBtn = document.getElementById('videoRotExitBtn');
+  if (exitBtn) exitBtn.remove();
+  try{
+    if (_elementoFullscreenActivo()) (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.unlock === 'function'){
+      window.screen.orientation.unlock();
+    }
+  }catch(e){ /* no crítico */ }
+}
+
+/* ── Tarjeta con miniatura horizontal (espejo de _tarjetaVideoThumb en
+   portal.js). Al hacer clic simula abrir/terminar el vídeo en YouTube
+   externo (ver maAbrirVideoExterno) y avanza la mecánica simulada. ── */
+function maTarjetaVideoThumb(v, opts){
+  opts = opts || {};
+  const locked = !!opts.locked;
+  const bg = v.imagenMiniatura ? ` style="background-image:url('${esc(v.imagenMiniatura)}');"` : '';
+  const titulo = opts.tituloOverride || v.titulo;
+  return `<div class="video-thumb-card${locked?' locked':''}"
+      ${locked?'':`data-vid="${v.id}" onclick="maAbrirVideoExterno('${v.id}')"`}
+      ${locked?'title="Se desbloquea al completar la clase anterior (simulado)"':''}>
+    <div class="video-thumb-img"${bg}>
+      ${locked ? '<span class="video-thumb-lock">🔒</span>' : '<span class="video-thumb-play">▶</span>'}
+      ${(!locked && opts.numero!=null) ? `<span class="video-thumb-num">${opts.numero}</span>` : ''}
+      ${(!locked && opts.completado) ? '<span class="video-thumb-check">✓</span>' : ''}
+    </div>
+    <div class="video-thumb-body">
+      <div class="video-thumb-title">${esc(titulo)}</div>
+      ${opts.sub ? `<div class="video-thumb-sub">${esc(opts.sub)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 /* Construye la lista de clases + bonus de un nivel aplicando el
    bloqueo simulado 2x2 (espejo de _construirListaNivelHTML en portal.js,
    pero sobre _maCompletados en vez de datos reales de dispositivo). */
@@ -7546,48 +7690,27 @@ function maConstruirListaNivelHTML(disc, nivel){
   const desbloqueados = maNivelVideosDesbloqueados(disc, nivel);
   const bonus = maBonusDeNivel(disc, nivel);
   const bonusListo = maBonusNivelDesbloqueado(disc, nivel);
-  let html = '<div style="display:flex;flex-direction:column;gap:8px;">' + vids.map((v,i)=>{
-    const completo = maEsCompletado(v.id);
-    if (i>=desbloqueados){
-      return `<div class="video-row" style="opacity:.55;cursor:not-allowed;" title="Se desbloquea al completar la clase anterior (simulado)">
-        <div class="video-row-num">🔒</div>
-        <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(v.titulo)}</div></div>
-      </div>`;
-    }
-    return `<div class="video-row${completo?' visto':''}" data-vid="${v.id}" onclick="maPlayVideo('${v.id}')">
-      ${completo?'<span class="vi-done" title="Marcada como completada (simulado)"></span>':''}
-      <div class="video-row-num">${i+1}</div>
-      <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(v.titulo)}</div></div>
-      <span class="video-row-arrow">▶</span>
-    </div>`;
+  let html = '<div style="display:flex;flex-direction:column;gap:12px;">' + vids.map((v,i)=>{
+    const locked = i>=desbloqueados;
+    return maTarjetaVideoThumb(v, {locked, numero:i+1, completado:maEsCompletado(v.id)});
   }).join('') + '</div>';
   if (bonus.length){
     html += `<div style="display:flex;align-items:center;gap:8px;margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--card-border);">
       <span style="font-size:14px;">🎁</span>
       <span style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:700;">Bonus</span>
     </div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:12px;">`;
     html += bonus.map((bv,i)=>{
       const porRacha = maBonusDesbloqueadoPorRacha(bv.id);
       const desbloqueado = bonusListo || porRacha;
       if (desbloqueado){
-        return `<div class="video-row" data-vid="${bv.id}" onclick="maPlayVideo('${bv.id}')">
-          <div class="video-row-num" style="background:var(--gold);color:#0a0a0a;border-color:transparent;">🎁</div>
-          <div style="flex:1;min-width:0;">
-            <div class="video-row-title">${esc(bv.titulo)}</div>
-            <div class="video-row-sub">Bonus ${i+1} · ${(porRacha && !bonusListo) ? 'Desbloqueado con su racha 🔥' : 'Desbloqueado (100% del nivel, simulado)'}</div>
-          </div>
-          <span class="video-row-arrow" style="opacity:1;">▶</span>
-        </div>`;
+        return maTarjetaVideoThumb(bv, {completado:maEsCompletado(bv.id),
+          sub:`Bonus ${i+1} · ${(porRacha && !bonusListo) ? 'Desbloqueado con su racha 🔥' : 'Desbloqueado (100% del nivel, simulado)'}`});
       }
-      return `<div class="video-row" style="opacity:.55;cursor:not-allowed;"
-        title="Se desbloquea al completar el 100% de las clases del nivel (simulado) o con la racha de 5 días">
-        <div class="video-row-num">🔒</div>
-        <div style="flex:1;min-width:0;">
-          <div class="video-row-title">Bonus ${i+1} · ${esc(bv.titulo)}</div>
-          <div class="video-row-sub">Se desbloquea al 100% del nivel (${maNivelVideosCompletados(disc,nivel)}/${vids.length}, simulado) o con la racha</div>
-        </div>
-      </div>`;
+      return maTarjetaVideoThumb(bv, {locked:true, tituloOverride:`Bonus ${i+1} · ${bv.titulo}`,
+        sub:`Se desbloquea al 100% del nivel (${maNivelVideosCompletados(disc,nivel)}/${vids.length}, simulado) o con la racha`});
     }).join('');
+    html += '</div>';
   }
   return html;
 }
@@ -7606,12 +7729,6 @@ async function maAbrirNivel(disc, nivel){
 
   const list = $('maVideoList');
   if (list) list.innerHTML = maConstruirListaNivelHTML(disc, nivel);
-
-  if (!vids.length) { playNav(); return; }
-  const desbloqueados = maNivelVideosDesbloqueados(disc, nivel);
-  const disponibles = vids.slice(0, desbloqueados);
-  const primero = disponibles.find(v=>!maEsCompletado(v.id)) || disponibles[disponibles.length-1];
-  maPlayVideo(primero.id, false);
   playNav();
 }
 /* El modal Rachas.png solo debe verse UNA vez por nivel (espejo de
@@ -7666,93 +7783,52 @@ function maCerrarModalDesbloqueo(){
 function maContinuarDesdeModalDesbloqueo(){
   const siguienteId = _maDesbloqueoModalSiguienteId;
   maCerrarModalDesbloqueo();
-  if (siguienteId) maPlayVideo(siguienteId, false);
-}
-
-/* ── Abre un vídeo de calentamiento/estiramiento en el mismo modal que las
-   clases (maAulaWrap), reconstruyendo la lista de la sección en vez de la
-   de un nivel. Espejo de solo lectura de reproducirEnHub() en portal.js
-   para vídeos tipo='calentamiento'. ── */
-function maAbrirCalentamiento(id){
-  const wrap = $('maAulaWrap'); if (!wrap) return;
-  wrap.style.display='flex';
-  document.body.style.overflow = 'hidden';
-  const grupo = _maVideos.filter(v=>v.tipo==='calentamiento').sort((a,b)=>(a.orden||0)-(b.orden||0));
-  if ($('maPanelTitulo')) $('maPanelTitulo').textContent = '🔥 Mis Calentamientos y Estiramientos';
-  if ($('maPanelSub'))    $('maPanelSub').textContent    = `${grupo.length} vídeo${grupo.length!==1?'s':''}`;
-  const list = $('maVideoList');
-  if (list){
-    list.innerHTML = grupo.map((gv,i)=>`<div class="video-row${maEsCompletado(gv.id)?' visto':''}" data-vid="${gv.id}" onclick="maPlayVideo('${gv.id}')">
-      ${maEsCompletado(gv.id)?'<span class="vi-done" title="Ya lo hiciste (simulado)"></span>':''}
-      <div class="video-row-num">${i+1}</div>
-      <div style="flex:1;min-width:0;"><div class="video-row-title">${esc(gv.titulo)}</div></div>
-      <span class="video-row-arrow">▶</span>
-    </div>`).join('');
-  }
-  maPlayVideo(id, false);
-  playNav();
+  if (siguienteId) maAbrirVideoExterno(siguienteId);
 }
 
 /* ── Cierra el panel de vídeo (botón "← Volver a Cursos") ── */
 function maCerrarPanelVideo(){
   const wrap = $('maAulaWrap'); if (wrap) wrap.style.display='none';
   document.body.style.overflow = '';
-  const label = $('maVideoCurrentLabel'); if (label) label.style.display='none';
   maDriveDetener();
   const driveWrap = $('maDrivePlayerWrap'); if (driveWrap) driveWrap.style.display='none';
 }
 
-/* simular=true (default, usado al hacer clic en una fila de la lista):
-   marca la clase como completada al instante — el admin no reproduce el
-   vídeo real, así que el clic hace las veces de "terminar de verla".
-   simular=false (usado al abrir un nivel o al continuar desde el modal):
-   solo carga el vídeo en el reproductor, sin completarlo todavía, igual
-   que en el portal real donde cargar un vídeo no lo marca como visto. */
-function maPlayVideo(id, simular=true){
+/* Convierte la URL guardada (embed de YouTube, youtu.be…) en la URL "de
+   mirar" que se abre externamente — espejo de _urlVideoExterno en
+   portal.js. */
+function _urlVideoExterno(v){
+  const raw = (v && v.url) || '';
+  if (raw.includes('youtube.com/embed/')){
+    const vid_ = raw.split('youtube.com/embed/')[1].split('?')[0];
+    return `https://www.youtube.com/watch?v=${vid_}`;
+  }
+  if (raw.includes('youtu.be/')){
+    const vid_ = raw.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/watch?v=${vid_}`;
+  }
+  return raw;
+}
+
+/* ── Espejo de solo lectura de abrirVideoExterno() en portal.js: en vez de
+   reproducir nada, simula el efecto de que el alumno abrió/terminó el
+   vídeo en YouTube externo (marca completada la clase si corresponde, sin
+   depender de ningún reproductor incrustado) y abre la URL real en una
+   pestaña nueva, para que el admin pueda previsualizar el vídeo si quiere. */
+function maAbrirVideoExterno(id){
   const v = _maVideos.find(x => x.id === id);
   if (!v) return;
-  if (simular) maProcesarDesbloqueo2x2(id);
-  document.querySelectorAll('#maVideoList .video-row, #maVideoList .clase-mini').forEach(el => {
-    el.classList.toggle('active', el.dataset.vid === id);
-    el.classList.toggle('playing', el.dataset.vid === id);
-  });
-  const title = $('maVideoTitle'), notes = $('maVideoNotes');
-  if (title) { title.style.display = ''; title.textContent = v.titulo; }
-  if (notes) notes.textContent = v.notas || '';
-
-  const label = $('maVideoCurrentLabel');
-  const labelText = $('maVideoCurrentLabelText');
-  if (label && labelText){
-    if (!v.tipo || v.tipo==='clase'){
-      const lista = _maVideos.filter(x=>x.disciplina===v.disciplina && x.nivel===v.nivel && (!x.tipo||x.tipo==='clase'))
-        .sort((a,b)=>(a.orden||0)-(b.orden||0));
-      const posicion = lista.findIndex(x=>x.id===v.id) + 1;
-      label.style.display='flex';
-      labelText.innerHTML = `${esc(v.disciplina)} · ${nivelLabel(v.nivel)} — <span class="clase-actual">Clase ${posicion||1}</span>`;
-    } else {
-      label.style.display='none';
+  const esClasePrincipal = !v.tipo || v.tipo==='clase';
+  if (esClasePrincipal){
+    maProcesarDesbloqueo2x2(id);
+  } else {
+    maMarcarCompletado(id);
+    if (_maNivelActivo && $('maVideoList')){
+      $('maVideoList').innerHTML = maConstruirListaNivelHTML(_maNivelActivo.disc, _maNivelActivo.nivel);
     }
   }
-  const wrap = $('maPlayerWrap'); if (!wrap) return;
-  wrap.querySelectorAll('iframe,video').forEach(e => e.remove());
-  const placeholder = wrap.querySelector('div');
-  if (placeholder) placeholder.remove();
-  const url = v.url || '';
-  if (url.includes('youtube.com/embed') || url.includes('youtu.be') || url.includes('vimeo.com')){
-    let embed = url;
-    if (url.includes('youtu.be/')){ const vid_ = url.split('youtu.be/')[1].split('?')[0]; embed = `https://www.youtube-nocookie.com/embed/${vid_}?rel=0&modestbranding=1&iv_load_policy=3`; }
-    else if (url.includes('youtube.com/embed')){ const base = url.split('?')[0]; embed = `${base}?rel=0&modestbranding=1&iv_load_policy=3`; }
-    const ifr = document.createElement('iframe');
-    ifr.src = embed; ifr.allow = 'accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';
-    ifr.allowFullscreen = true;
-    ifr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
-    wrap.appendChild(ifr);
-  } else if (url.match(/\.(mp4|webm|m4v)$/i)){
-    const vid_ = document.createElement('video');
-    vid_.src = url; vid_.controls = true; vid_.controlsList = 'nodownload';
-    vid_.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
-    wrap.appendChild(vid_);
-  }
+  const url = _urlVideoExterno(v);
+  if (url) window.open(url, '_blank', 'noopener');
 }
 /* ── Calcula qué niveles puede ver el alumno en vista previa (modo admin) ──
    Espejo exacto de nivelesToAcceso() en portal.js, pero usando _maUsuario

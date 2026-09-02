@@ -1,0 +1,21 @@
+{
+  "config": {},
+  "users": [
+    {
+      "id": "admin-principal-1",
+      "username": "Gaston",
+      "passwordHash": "18807799f6f992ebcbcf0d75cdd08bf2:1eb95add8c15db089696c97948afcbf3de05b76af1618ea7eb12cc43233c69b827c3b50be2fd16aba3be089567c5b92b486506da7e823e4396a5cacb283a2d62",
+      "role": "admin",
+      "nombre": "Gaston",
+      "email": "",
+      "active": true
+    }
+  ],
+  "classes": [],
+  "enrollments": [],
+  "videos": [],
+  "cursos": [],
+  "tokensCursoExterno": [],
+  "attendances": [],
+  "payments": []
+}
